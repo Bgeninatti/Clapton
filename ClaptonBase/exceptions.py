@@ -119,4 +119,4 @@ class SerialConfigError(Exception):
     error_msg = 'Hubo un error intentando abrir el puerto serie. Es probable que se encuentre mal configurado o haya un problema de permisos.'
 
     def __init__(self):
-        super(EncodeError, self).__init__(SerialConfigError.error_msg)
+        super(SerialConfigError, self).__init__(SerialConfigError.error_msg)

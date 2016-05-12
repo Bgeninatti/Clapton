@@ -44,8 +44,9 @@ class SerialInterface(object):
     def stop(self):
         self._logger.info("Parando SerialInstance.")
         self._stop = True
-        self.connection_thread.join()
-        self.connection_thread = None
+        if self.connection_thread is not None:
+            self.connection_thread.join()
+            self.connection_thread = None
         self.connection_socket.stop()
 
     def _connection(self):
@@ -102,7 +103,6 @@ class SerialInterface(object):
         if not self.im_master:
             raise NoMasterException
         self._logger.debug("Esperando disponibilidad de puerto serie.")
-        self.ser_seted.wait()
         if self.ser_seted.isSet():
             self.using_ser.acquire()
             try:
@@ -136,7 +136,6 @@ class SerialInterface(object):
 
     def read_paq(self):
         self._logger.debug("Esperando disponibilidad de puerto serie.")
-        self.ser_seted.wait()
         if self.ser_seted.isSet():
             self.using_ser.acquire()
             ser_buffer = self._ser.read()
@@ -187,7 +186,7 @@ class SerialInterface(object):
             self._logger.info('Bloqueando puerto serie.')
             self.using_ser.acquire()
         timeout = time.time() + WAIT_MASTER_PERIOD
-        if self.ser_seted.wait():
+        if self.ser_seted.isSet():
             try:
                 read = ''
                 self._ser.flushInput()

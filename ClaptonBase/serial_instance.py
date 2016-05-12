@@ -3,7 +3,7 @@ import time, zmq, serial
 from threading import Thread, Lock, Event
 from random import random
 from . import decode
-from .exceptions import WriteException, ReadException, BadChecksumException, NoMasterException
+from .exceptions import WriteException, ReadException, BadChecksumException, NoMasterException, SerialConfigError
 from .containers import Paquete
 
 from .cfg import *
@@ -56,6 +56,7 @@ class SerialInterface(object):
             self.ser_seted.set()
         except serial.SerialException as e:
             self._logger.error('Error intentando abrir el puerto serie: %s' % str(e))
+            raise SerialConfigError
 
         while not self._stop:
             tries_connect = 0

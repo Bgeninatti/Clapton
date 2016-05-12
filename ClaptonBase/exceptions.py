@@ -111,3 +111,12 @@ class EncodeError(Exception):
 
     def __init__(self):
         super(EncodeError, self).__init__(EncodeError.error_msg)
+
+
+class SerialConfigError(Exception):
+
+    code = 700
+    error_msg = 'Hubo un error intentando abrir el puerto serie. Es probable que se encuentre mal configurado o haya un problema de permisos.'
+
+    def __init__(self):
+        super(EncodeError, self).__init__(SerialConfigError.error_msg)

@@ -56,6 +56,7 @@ class SerialInterface(object):
             self.ser_seted.set()
         except serial.SerialException as e:
             self._logger.error('Error intentando abrir el puerto serie: %s' % str(e))
+            self.stop()
             raise SerialConfigError
 
         while not self._stop:
@@ -65,7 +66,7 @@ class SerialInterface(object):
                 t = time.time() + CON_STATUS_PERIOD
             if not self.ser_seted.isSet():
                 self._logger.error('Perdimos la conexion con el puerto serie. Se intenta reconectar.')
-            while not self.ser_seted.isSet():
+            while not self.ser_seted.isSet() and not self._stop:
                 try:
                     self._ser.open()
                     self.ser_seted.set()
@@ -140,7 +141,7 @@ class SerialInterface(object):
             self.using_ser.acquire()
             ser_buffer = self._ser.read()
             try:
-                while 1:
+                while not self._stop:
                     ser_buffer += self._ser.read(3)
                     if len(ser_buffer) == 1:
                         ser_buffer += self._ser.read()

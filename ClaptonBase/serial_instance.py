@@ -47,6 +47,8 @@ class SerialInterface(object):
         if self.connection_thread is not None:
             self.connection_thread.join()
             self.connection_thread = None
+        if self._ser is not None:
+            self._ser.close()
         self.connection_socket.stop()
 
     def _connection(self):

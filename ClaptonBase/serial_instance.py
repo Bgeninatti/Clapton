@@ -44,7 +44,7 @@ class SerialInterface(object):
     def stop(self):
         self._logger.info("Parando SerialInstance.")
         self._stop = True
-        if self.connection_thread is not None:
+        if hasattr(self, 'connection_thread') and self.connection_socket is not None:
             self.connection_thread.join()
             self.connection_thread = None
         if self._ser is not None:

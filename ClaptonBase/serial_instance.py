@@ -49,6 +49,7 @@ class SerialInterface(object):
             self.connection_thread = None
         if self._ser is not None:
             self._ser.close()
+        self.connection_socket.close()
 
     def _connection(self):
         self._logger.info("Iniciando ConnectionThread.")

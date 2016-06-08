@@ -7,8 +7,8 @@ from threading import Event, Lock
 
 from .cfg import *
 from . import encode, decode
-from .exceptions import BadChecksumException, WriteException, ReadException, TokenExeption, NodeNotExists, \
-    AppWriteException, InactiveAppException, ActiveAppException, PaqException, BadLineException, DecodeError
+from .exceptions import ChecksumException, WriteException, ReadException, TokenExeption, NodeNotExists, \
+    InactiveAppException, ActiveAppException, PaqException, BadLineException, DecodeError
 from .utils import get_logger
 
 
@@ -64,16 +64,23 @@ class Paquete(object):
         # las escrituras.
 
         # Paquete como cadena de bytes
+        """
+        raise:
+            EncodeError
+            ChecksumException
+            AttributeError
+            PaqException
+        """
         if paq is not None:
             # Verifico el checksum del paquete.
             if decode.validate_cs(paq):
                 self.cs = paq[-1]
             else:
-                raise BadChecksumException
+                raise ChecksumException
             # Decodifico las variables
             self.to_write = paq
-            self.origen, self.destino, _ = decode.fuen_dest(paq[0])
-            self.funcion, self.longitud, _ = decode.func_lon(paq[1])
+            self.origen, self.destino, _ = decode.fuen_des(paq[0])
+            self.funcion, self.longitud, _ = decode.fun_lon(paq[1])
             self.datos = paq[2:-1]
         # Paquete como parametros
         elif origen is not None and destino is not None and funcion is not None:
@@ -82,30 +89,34 @@ class Paquete(object):
             self.funcion = funcion
             self.datos = datos if datos is not None else ''
             self.longitud = len(self.datos)
-            # Genero Checksum
-            self.cs = encode.checksum(
-                encode.fuen_des(self.origen, self.destino) + encode.fun_lon(self.funcion, self.longitud) + self.datos)
+            self.cs = None
             # Creo cadena de bytes.
             self.to_write = self._make_paq()
-            self.representation = self._make_representation()
             self._validate()
             self.rta_size = self._get_rta_size()
         # Ninguna de las dos. Devuelvo un error.
         else:
             raise AttributeError
+        self.representation = self._make_representation()
 
     def _make_paq(self):
         # Creo cabecera
         b1 = encode.fuen_des(self.origen, self.destino)
         # Creo funcion y longitud
         b2 = encode.fun_lon(self.funcion, self.longitud)
+        # Guardo el checksum
+        self.cs = encode.checksum('{0}{1}{2}'.format(b1, b2, self.datos))
         # Lo junto y lo mando.
-        return b1 + b2 + self.datos + self.cs
+        return '{0}{1}{2}{3}'.format(b1, b2, self.datos, self.cs)
 
     def _make_representation(self):
         return self.to_write.encode('hex')
 
     def _validate(self):
+        """
+        Llegada a esta instancia la funcion ya fue validad y se asegura que esta
+        no es mayor a 8, sin embargo excepcion de PaqException se establece igual
+        """
         if self.funcion == 0 and len(self.datos):
             # La funcion 0 siempre tiene que tener longitud de datos 0
             raise PaqException('La funcion 0 siempre tiene que tener longitud de datos 0.')
@@ -125,7 +136,11 @@ class Paquete(object):
             PaqException('No se reconoce la funcion')
 
     def _get_rta_size(self):
-        # Calcula tamanio de la respuesta segun la funcion del paquete
+        """
+        Calcula tamanio de la respuesta segun la funcion del paquete
+        Llegada a esta instancia la funcion ya fue validad y se asegura que esta
+        no es mayor a 8, sin embargo excepcion de PaqException se establece igual
+        """
         if self.funcion == 0:
             return 13
         elif self.funcion in READ_FUNCTIONS:
@@ -146,19 +161,19 @@ class Paquete(object):
         elif self.funcion == 7:
             return 3
         else:
-            raise AttributeError
+            PaqException('No se reconoce la funcion')
 
 
 class MemoInstance(object):
 
-    def __init__(self, nodo, tipo, indice, timestamp=None, datos=None):
+    def __init__(self, nodo, tipo, indice, timestamp=None, valor=None):
         # contenedor dummy de atributos. Los datos no son requeridos para podera armar la memoria de a dos paquetes
         # cuando no soy master.
-        self.timestamp = int(timestamp*1000)
+        self.timestamp = int(timestamp*1000) if timestamp is not None else None
         self.nodo = nodo
         self.tipo = tipo
         self.indice = indice
-        self.valor = datos
+        self.valor = valor
 
 
 class Node(object):
@@ -224,11 +239,11 @@ class Node(object):
         self.required_ram_index = required_ram_index
         self.required_eeprom_index = required_eeprom_index
 
-        self.enabled_read_ram = required_ram or len(required_ram_index)
-        self.enabled_read_eeprom = required_eeprom or len(required_eeprom_index)
+        self.enabled_read_ram = required_ram or len(required_ram_index) > 0
+        self.enabled_read_eeprom = required_eeprom or len(required_eeprom_index) > 0
         self.enabled_read_node = required or self.enabled_read_ram or self.enabled_read_eeprom
-        self.enable_eeprom_sector(required_eeprom_index)
-        self.enable_ram_sector(required_ram_index)
+        self.enable_eeprom_sector(*required_eeprom_index)
+        self.enable_ram_sector(*required_ram_index)
 
         # En donde se almacenaran los servicios leidos del pic
         self.servicios = None
@@ -240,6 +255,11 @@ class Node(object):
 
     @status.setter
     def status(self, value):
+        """
+        :param value: int
+        :raise:
+          TypeError: si el estado no es int
+        """
         if type(value) is not int:
             self._logger.error("Parametro invalido para atributo status del nodo %s.", str(self.lan_dir))
             raise TypeError
@@ -261,6 +281,15 @@ class Node(object):
 
     @enabled_read_node.setter
     def enabled_read_node(self, value):
+        """
+        :param value: int
+        :raise:
+          TypeError: si el valor no es bool
+        """
+        if type(value) is not bool:
+            self._logger.error("Parametro invalido para atributo enable_read_node del nodo %s.", str(self.lan_dir))
+            raise TypeError
+
         if self.required and not value:
             self._logger.warning("El nodo %d es requerido y se esta desactivando su lectura" % (self.lan_dir,))
 
@@ -278,6 +307,15 @@ class Node(object):
 
     @enabled_read_ram.setter
     def enabled_read_ram(self, value):
+        """
+        :param value: int
+        :raise:
+          TypeError: si el valor no es bool
+        """
+        if type(value) is not bool:
+            self._logger.error("Parametro invalido para atributo enable_read_ram del nodo %s.", str(self.lan_dir))
+            raise TypeError
+
         if self.required_ram and not value:
             self._logger.warning("La memoria ram del nodo %d es requerida y se esta desactivando su lectura" % (self.lan_dir,))
 
@@ -295,6 +333,15 @@ class Node(object):
 
     @enabled_read_eeprom.setter
     def enabled_read_eeprom(self, value):
+        """
+        :param value: int
+        :raise:
+          TypeError: si el valor no es bool
+        """
+        if type(value) is not bool:
+            self._logger.error("Parametro invalido para atributo enable_read_eeprom del nodo %s.", str(self.lan_dir))
+            raise TypeError
+
         if self.required_eeprom and not value:
             self._logger.warning("La eeprom del nodo %d es requerida y se esta desactivando su lectura" % (self.lan_dir,))
 
@@ -307,6 +354,15 @@ class Node(object):
             self._can_update.set()
 
     def disable_eeprom_sector(self, *args):
+        """
+        :param value: ints
+        :raise:
+          TypeError: si el valor no es int
+        """
+        if any([type(a) != int for a in args]):
+            self._logger.error("Los valores para disable_eeprom_sector deben ser todos int.")
+            raise TypeError
+
         if any([a in self.required_eeprom_index for a in args]):
             self._logger.warning("Desactivando indices de eeprom del nodo %d indicados como requeridos" % (self.lan_dir,))
         self._logger.info("Desactivando sectores de eeprom %s del nodo %s.", str(args), str(self.lan_dir))
@@ -314,25 +370,43 @@ class Node(object):
         if self._can_update.isSet():
             self._can_update.clear()
             for value in args:
-                if type(value) is int and value not in self.index_disabled_eeprom and value in range(int(self.eeprom_size + 1)):
+                if value not in self.index_disabled_eeprom and value in range(int(self.eeprom_size + 1)):
                     self.index_disabled_eeprom.append(value)
                 self.index_disabled_eeprom = sorted(self.index_disabled_eeprom)
             self._can_update.set()
             self._update_to_read_eeprom()
 
     def enable_eeprom_sector(self, *args):
+        """
+        :param value: ints
+        :raise:
+          TypeError: si el valor no es int
+        """
+        if any([type(a) != int for a in args]):
+            self._logger.error("Los valores para enable_eeprom_sector deben ser todos int.")
+            raise TypeError
+
         self._logger.info("Activando sectores de eeprom %s del nodo %s.", str(args), str(self.lan_dir))
         self._can_update.wait()
         if self._can_update.isSet():
             self._can_update.clear()
             for value in args:
-                if type(value) is int and value in self.index_disabled_eeprom and value in range(int(self.eeprom_size + 1)):
+                if value in self.index_disabled_eeprom and value in range(int(self.eeprom_size + 1)):
                     self.index_disabled_eeprom.remove(value)
                 self.index_disabled_eeprom = sorted(self.index_disabled_eeprom)
             self._can_update.set()
             self._update_to_read_eeprom()
 
     def disable_ram_sector(self, *args):
+        """
+        :param value: ints
+        :raise:
+          TypeError: si el valor no es int
+        """
+        if any([type(a) != int for a in args]):
+            self._logger.error("Los valores para disable_ram_sector deben ser todos int.")
+            raise TypeError
+
         if any([a in self.required_ram_index for a in args]):
             self._logger.warning("Desactivando indices de ram del nodo %d indicados como requeridos" % (self.lan_dir,))
         self._logger.info("Desactivando sectores de ram %s del nodo %s.", str(args), str(self.lan_dir))
@@ -340,19 +414,28 @@ class Node(object):
         if self._can_update.isSet():
             self._can_update.clear()
             for value in args:
-                if type(value) is int and value not in self.index_disabled_ram and value in range(int(self.ram_read + 1)):
+                if value not in self.index_disabled_ram and value in range(int(self.ram_read + 1)):
                     self.index_disabled_ram.append(value)
                 self.index_disabled_ram = sorted(self.index_disabled_ram)
             self._can_update.set()
             self._update_to_read_ram()
 
     def enable_ram_sector(self, *args):
+        """
+        :param value: ints
+        :raise:
+          TypeError: si el valor no es int
+        """
+        if any([type(a) != int for a in args]):
+            self._logger.error("Los valores para enable_ram_sector deben ser todos int.")
+            raise TypeError
+
         self._logger.info("Activando sectores de ram %s del nodo %s.", str(args), str(self.lan_dir))
         self._can_update.wait()
         if self._can_update.isSet():
             self._can_update.clear()
             for value in args:
-                if type(value) is int and value in self.index_disabled_ram and value in range(int(self.ram_read + 1)):
+                if value in self.index_disabled_ram and value in range(int(self.ram_read + 1)):
                     self.index_disabled_ram.remove(value)
                 self.index_disabled_ram = sorted(self.index_disabled_ram)
             self._can_update.set()
@@ -367,7 +450,7 @@ class Node(object):
           NodeNotExists: Si no se recibio respuesta del nodo
         """
         if rta is not None:
-            if isinstance(rta, Paquete) or rta.funcion != 0:
+            if not isinstance(rta, Paquete) or rta.funcion != 0:
                 self._logger.error("Error de validacion de datos de identify en el nodo %s.", str(self.lan_dir))
                 raise TypeError
 
@@ -419,7 +502,7 @@ class Node(object):
             self._logger.warning("Nodo %s posiblemente con una version vieja de software.", str(self.lan_dir))
             self.identified = True
             status = 1
-        except WriteException:
+        except (WriteException, ReadException) as e:
             if self.ser.im_master:
                 self._logger.error("El nodo %s no existe.", str(self.lan_dir))
                 status = 3
@@ -448,20 +531,18 @@ class Node(object):
         :raise:
             InactiveAppException: Si la aplicacion esta inactiva.
             TokenExeption: Si no se pudo hacer el traspaso de token.
+            WriteException: Si no se pudo escribir el paquete.
+            ReadException: Si no se pudo leer la respuesta del nodoself.
         """
         if not self.aplicacion_activa:
             raise InactiveAppException
 
         self._logger.info("Ofreciendo token al nodo %s.", str(self.lan_dir))
         paq = Paquete(destino=self.lan_dir, funcion=7)
-        try:
-            rta, _ = self.ser.send_paq(paq)
-            self.ser.check_master()
-            if self.ser.im_master:
-                self._logger.error("Error en traspaso de master al nodo %s.", str(self.lan_dir))
-                raise TokenExeption
-        except (WriteException, ReadException) as e:
-            self._logger.error("Error en la oferta de token al nodo %s.", str(self.lan_dir))
+        rta, _ = self.ser.send_paq(paq)
+        self.ser.check_master()
+        if self.ser.im_master:
+            self._logger.error("Error en traspaso de master al nodo %s.", str(self.lan_dir))
             raise TokenExeption
 
     def read_app_line(self, inicio, longitud):
@@ -472,10 +553,12 @@ class Node(object):
         :raise:
           ActiveAppException: Si la aplicacion esta inactiva
           TypeError: Si el tipo de los parametros recibidos no es correcto
+          WriteException: Si no se pudo escribir el paquete.
+          ReadException: Si no se pudo leer la respuesta del nodoself.
         """
 
         if not self.aplicacion_activa:
-            raise ActiveAppException #TODO: 
+            raise ActiveAppException #TODO:
 
         if any([type(inicio) != int, type(longitud) != int]):
             self._logger.error("Error de validacion de datos de read_app_line en el nodo %s.", str(self.lan_dir))
@@ -496,23 +579,20 @@ class Node(object):
         :return: None
         :raise:
           InactiveAppException: Si la aplicacion ya esta inactiva.
-          AppWriteException: Si hubo un error al intentar desactivar la aplicacion.
+          ActiveAppException: Si hubo un error desactivando la aplicacion.
+          WriteException: Si no se pudo escribir el paquete.
+          ReadException: Si no se pudo leer la respuesta del nodoself.
         """
         if not self.aplicacion_activa:
             raise InactiveAppException
 
         self._logger.info("Desactivando aplicacion del nodo %s.", str(self.lan_dir))
         paq = Paquete(destino=self.lan_dir, funcion=6, datos='\x01\xff')
-        try:
-            rta, _ = self.ser.send_paq(paq)
-            if rta.datos != '\x02':
-                raise WriteException
-            else:
-                self.aplicacion_activa = False
-        except (ReadException, WriteException) as e:
-            self._logger.error("Error desactivando la aplicacion del nodo %s.",
-                               str(self.lan_dir))
-            raise AppWriteException
+        rta, _ = self.ser.send_paq(paq)
+        if rta.datos != '\x02':
+            raise ActiveAppException
+        else:
+            self.aplicacion_activa = False
 
     def write_app_line(self, line):
         """
@@ -521,6 +601,8 @@ class Node(object):
         :raise:
           TypeError: Si line no es una instancia de AppLine
           ActiveAppException: Si la aplicacion esta activa
+          WriteException: Si no se pudo escribir el paquete.
+          ReadException: Si no se pudo leer la respuesta del nodoself.
         """
         # TODO: APP_INIT_CONFIG tiene que ir en el paquete de identificacion
         if self.aplicacion_activa:
@@ -550,21 +632,19 @@ class Node(object):
         :return: None
         :raise:
           ActiveAppException: Si la aplicacion ya esta activa
-          AppWriteException: Cuando no se pudo activar la aplicacion, independientemente de que se haya podido escribir el paquete o no.
+          InactiveAppException: Si hubo un error intentando activar la aplicacion
+          WriteException: Si no se pudo escribir el paquete.
+          ReadException: Si no se pudo leer la respuesta del nodo.
         """
         if self.aplicacion_activa:
             raise ActiveAppException
         self._logger.info("Reactivando aplicacion del nodo %s.", str(self.lan_dir))
         paq = Paquete(destino=self.lan_dir, funcion=6, datos='\x00\x00\xa5\x05')
-        try:
-            rta, _ = self.ser.send_paq(paq)
-            if rta.datos != '\x02':
-                raise WriteException
-            else:
-                self.aplicacion_activa = True
-        except (ReadException, WriteException) as e:
-            self._logger.error("Error reactivando la aplicacion %s.", str(self.lan_dir))
-            raise AppWriteException
+        rta, _ = self.ser.send_paq(paq)
+        if rta.datos != '\x02':
+            raise InactiveAppException
+        else:
+            self.aplicacion_activa = True
 
     def _update_to_read_eeprom(self):
         self._can_update.wait()
@@ -583,7 +663,7 @@ class Node(object):
                     else:
                         last_in_paq = i
                 if len(to_read_eeprom) > 0 and start != to_read_eeprom[-1][1]:
-                    to_read_eeprom.append((last_in_paq - start, start))
+                    to_read_eeprom.append((last_in_paq - start if last_in_paq > start else 1, start))
                 if not len(to_read_eeprom):
                     to_read_eeprom.append(((max(to_read) - min(to_read)), min(to_read)))
             else:
@@ -608,7 +688,7 @@ class Node(object):
                     else:
                         last_in_paq = i
                 if len(to_read_ram) > 0 and start != to_read_ram[-1][1]:
-                    to_read_ram.append((last_in_paq - start, start))
+                    to_read_ram.append((last_in_paq - start if last_in_paq > start else 1, start))
                 if not len(to_read_ram):
                     to_read_ram.append(((max(to_read) - min(to_read)), min(to_read)))
             else:
@@ -624,16 +704,12 @@ class Node(object):
         :param instance: str que indica la instancia de la memoria que se quiere leer (RAM o EEPROM)
         :return: Lista de memo_instances para cada uno de los valores leidos
         :raise:
-          TypeError: Si alguno de los parametros no corresponde con el tipo esperado
-          InactiveAppException: Si la aplicacion esta inactiva
-          ReadException:
+          InactiveAppException: Si la aplicacion esta inactiva.
+          WriteException: Si no se pudo escribir el paquete.
+          ReadException: Si no se pudo leer la respuesta del nodo.
         """
         if not self.aplicacion_activa:
             raise InactiveAppException
-
-        if any([type(inicio) != int, type(longitud) != int, instance not in MEMO_NAMES.values()]):
-            self._logger.error("Error de validacion de datos de read_memo en el nodo %s.", str(self.lan_dir))
-            raise TypeError
 
         if self.ser.im_master:
             self._logger.debug("Leyendo memoria del nodo %s.", str(self.lan_dir))
@@ -656,7 +732,7 @@ class Node(object):
                     tipo=instance,
                     indice=indice,
                     timestamp=timestamp,
-                    datos=paq.datos[k]
+                    valor=paq.datos[k]
                 )
                 if memo.tipo == 'RAM':
                     self.ram[indice] = memo
@@ -688,16 +764,13 @@ class Node(object):
         :param instance: str que indica la instancia de la memoria que se quiere escribir (RAM o EEPROM)
         :return: None
         :raise:
-          DecodeError: Si el formato de datos no es correcto
+          EncodeError: Si el formato de datos no es correcto
           InactiveAppException: Si la aplicacion esta inactiva
-          WriteException: Si hubo un error en la grabacion de la memoria
+          WriteException: Si no se pudo escribir el paquete.
+          ReadException: Si no se pudo leer la respuesta del nodo.
         """
         if not self.aplicacion_activa:
             raise InactiveAppException
-
-        if any([type(inicio) != int, type(datos) != str, instance not in MEMO_NAMES.values()]):
-            self._logger.error("Error de validacion de datos de write_memo en el nodo %s.", str(self.lan_dir))
-            raise TypeError
 
         self._logger.info("Escribiendo datos %s en nodo %s.", datos.encode('hex'), str(self.lan_dir))
         try:
@@ -706,8 +779,8 @@ class Node(object):
                 funcion=MEMO_WRITE_NAMES[instance],
                 datos='%s%s' % (struct.pack('b', inicio), datos.decode('hex'))
             )
-        except TypeError:
-            raise DecodeError
+        except struct.error:
+            raise EncodeError
         self.ser.send_paq(paq)
 
     def __str__(self):

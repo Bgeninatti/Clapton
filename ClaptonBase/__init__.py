@@ -1,7 +1,7 @@
 __author__ = 'bruno'
-import containers
-import serial_instance
-import exceptions
-import decode
-import encode
-import utils
+from ClaptonBase import containers
+from ClaptonBase import serial_instance
+from ClaptonBase import exceptions
+from ClaptonBase import decode
+from ClaptonBase import encode
+from ClaptonBase import utils

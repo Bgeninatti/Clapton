@@ -1,4 +1,3 @@
-__author__ = 'bruno'
 
 
 class ReadException(Exception):
@@ -19,13 +18,13 @@ class WriteException(Exception):
         super(WriteException, self).__init__(WriteException.error_msg)
 
 
-class BadChecksumException(Exception):
+class ChecksumException(Exception):
 
     code = 402
     error_msg = 'Error verificando el checksum del paquete.'
 
     def __init__(self):
-        super(BadChecksumException, self).__init__(BadChecksumException.error_msg)
+        super(ChecksumException, self).__init__(ChecksumException.error_msg)
 
 
 class NodeNotExists(Exception):
@@ -64,15 +63,6 @@ class BadLineException(Exception):
         super(BadLineException, self).__init__(BadLineException.error_msg)
 
 
-class AppWriteException(Exception):
-
-    code = 504
-    error_msg = 'Error en la escritura de la aplicacion.'
-
-    def __init__(self):
-        super(AppWriteException, self).__init__(AppWriteException.error_msg)
-
-
 class NoMasterException(Exception):
 
     code = 300
@@ -80,6 +70,15 @@ class NoMasterException(Exception):
 
     def __init__(self):
         super(NoMasterException, self).__init__(NoMasterException.error_msg)
+
+
+class NoSlaveException(Exception):
+
+    code = 301
+    error_msg = 'No se puede continuar la lectura de paquetes. Ya no soy esclavo.'
+
+    def __init__(self):
+        super(NoSlaveException, self).__init__(NoSlaveException.error_msg)
 
 
 class TokenExeption(Exception):

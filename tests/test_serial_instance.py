@@ -45,7 +45,8 @@ class SerialInstanceTestCase(unittest2.TestCase):
         ser.stop()
 
     def test_05_send_paq_ok(self):
-        ser = SerialInterface(mocking=True).start()
+        ser = SerialInterface(mocking=True)
+        ser._do_connect()
         ser.im_master = True
         paq = Paquete(origen=0, destino=1, funcion=1, datos=b'\x00\x05')
         ser._ser.buffer = ['01','22','00','05','d8','10','22','01','02','03','04','05','bf']
@@ -57,7 +58,8 @@ class SerialInstanceTestCase(unittest2.TestCase):
 
     def test_06_send_paq_no_master(self):
         with self.assertRaises(NoMasterException):
-            ser = SerialInterface(mocking=True).start()
+            ser = SerialInterface(mocking=True)
+            ser._do_connect()
             ser.im_master = False
             paq = Paquete(origen=0, destino=1, funcion=1, datos=b'\x00\x05')
             rta, echo = ser.send_paq(paq)
@@ -65,14 +67,16 @@ class SerialInstanceTestCase(unittest2.TestCase):
 
     def test_07_send_paq_type_error(self):
         with self.assertRaises(TypeError):
-            ser = SerialInterface(mocking=True).start()
+            ser = SerialInterface(mocking=True)
+            ser._do_connect()
             ser.im_master = True
             rta, echo = ser.send_paq(1234)
         ser.stop()
 
     def test_08_send_paq_read_exception(self):
         with self.assertRaises(ReadException):
-            ser = SerialInterface(mocking=True).start()
+            ser = SerialInterface(mocking=True)
+            ser._do_connect()
             ser.im_master = True
             paq = Paquete(origen=0, destino=1, funcion=1, datos=b'\x00\x05')
             rta, echo = ser.send_paq(paq)
@@ -80,7 +84,8 @@ class SerialInstanceTestCase(unittest2.TestCase):
 
     def test_09_send_paq_write_exception(self):
         with self.assertRaises(WriteException):
-            ser = SerialInterface(mocking=True).start()
+            ser = SerialInterface(mocking=True)
+            ser._do_connect()
             ser.im_master = True
             paq = Paquete(origen=0, destino=1, funcion=1, datos=b'\x00\x05')
             ser._ser.buffer = ['01','22','00','05','d8']
@@ -89,7 +94,8 @@ class SerialInstanceTestCase(unittest2.TestCase):
         ser.stop()
 
     def test_10_read_paq_ok(self):
-        ser = SerialInterface(mocking=True).start()
+        ser = SerialInterface(mocking=True)
+        ser._do_connect()
         ser.im_master = False
         ser._ser.buffer = ['01','22','00','05','d8','10','22','01','02','03','04','05','bf']
         ser._ser.buffer.reverse()
@@ -100,7 +106,8 @@ class SerialInstanceTestCase(unittest2.TestCase):
 
     def test_11_read_paq_read_exception(self):
         with self.assertRaises(ReadException):
-            ser = SerialInterface(mocking=True).start()
+            ser = SerialInterface(mocking=True)
+            ser._do_connect()
             ser.im_master = False
             ser._ser.raise_serial_error = 1
             gen = ser.read_paq()
@@ -108,13 +115,15 @@ class SerialInstanceTestCase(unittest2.TestCase):
         ser.stop()
 
     def test_12_check_master_true(self):
-        ser = SerialInterface(mocking=True).start()
+        ser = SerialInterface(mocking=True)
+        ser._do_connect()
         ser.check_master()
         self.assertTrue(ser.im_master)
         ser.stop()
 
     def test_13_check_master_false(self):
-        ser = SerialInterface(mocking=True).start()
+        ser = SerialInterface(mocking=True)
+        ser._do_connect()
         ser._ser.buffer = ['01','22','00','05','d8','10','22','01','02','03','04','05','bf']
         ser._ser.buffer.reverse()
         ser.check_master()
@@ -123,7 +132,8 @@ class SerialInstanceTestCase(unittest2.TestCase):
 
     def test_14_check_master_read_exception(self):
         with self.assertRaises(ReadException):
-            ser = SerialInterface(mocking=True).start()
+            ser = SerialInterface(mocking=True)
+            ser._do_connect()
             ser._ser.raise_serial_error = 1
             ser.check_master()
         ser.stop()

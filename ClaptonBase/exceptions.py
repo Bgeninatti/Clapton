@@ -1,5 +1,3 @@
-
-
 class ReadException(Exception):
 
     code = 400

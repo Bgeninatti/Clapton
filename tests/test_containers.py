@@ -8,9 +8,9 @@ from ClaptonBase.exceptions import ChecksumException, PaqException, \
 class PaqueteTestCase(unittest2.TestCase):
 
     def test_ok(self):
-        self.assertIsInstance(Paquete(destino=1, funcion=2, datos='\x00\xff'), Paquete)
+        self.assertIsInstance(Paquete(destino=1, funcion=2, datos=b'\x00\xff'), Paquete)
 
-    def text_init(self):
+    def test_init(self):
         with self.assertRaises(AttributeError):
             Paquete()
 
@@ -18,25 +18,25 @@ class PaqueteTestCase(unittest2.TestCase):
         with self.assertRaises(EncodeError):
             Paquete(destino=16, funcion=0)
         with self.assertRaises(EncodeError):
-            Paquete(destino='a', funcion=0)
+            Paquete(destino=b'a', funcion=0)
 
     def test_encode_fun_lon(self):
         with self.assertRaises(EncodeError):
             Paquete(destino=2, funcion=10)
         with self.assertRaises(EncodeError):
-            Paquete(destino=2, funcion='a')
+            Paquete(destino=2, funcion=b'a')
 
     def test_decode_validate_cs(self):
         with self.assertRaises(ChecksumException):
-            Paquete(paq='\x01\x42\x00\xff')
+            Paquete(paq=b'\x01\x42\x00\xff')
 
     def test_validate_fun(self):
         with self.assertRaises(PaqException):
-            Paquete(destino=1, funcion=7)
+            p = Paquete(destino=1, funcion=7)
 
     def test_validate_fun_identify(self):
         with self.assertRaises(PaqException):
-            Paquete(destino=1, funcion=0, datos='\xff')
+            Paquete(destino=1, funcion=0, datos=b'\xff')
 
     def test_validate_fun_read(self):
         with self.assertRaises(PaqException):
@@ -63,11 +63,11 @@ class NodeTestCase(unittest2.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.ser = SerialInterface(mocking=True).open()
+        cls.ser = SerialInterface(mocking=True).start()
 
     @classmethod
     def tearDownClass(cls):
-        cls.ser.close()
+        cls.ser.stop()
 
     def test_ok(self):
         n = Node(1, self.ser)
@@ -101,7 +101,7 @@ class NodeTestCase(unittest2.TestCase):
     def test_enabled_read_ram_true(self):
         n = Node(1, self.ser)
         n.enabled_read_ram = True
-        self.assertFalse(n.enabled_read_ram)
+        self.assertTrue(n.enabled_read_ram)
 
     def test_enabled_read_ram_false(self):
         n = Node(1, self.ser)
@@ -116,7 +116,7 @@ class NodeTestCase(unittest2.TestCase):
     def test_enabled_read_eeprom_true(self):
         n = Node(1, self.ser)
         n.enabled_read_eeprom = True
-        self.assertFalse(n.enabled_read_eeprom)
+        self.assertTrue(n.enabled_read_eeprom)
 
     def test_enabled_read_eeprom_false(self):
         n = Node(1, self.ser)
@@ -180,16 +180,17 @@ class NodeTestCase(unittest2.TestCase):
         pass
 
     def test_read_memo_ok(self):
-        self.ser._ser.buffer = ['01','22','00','05','d8','10','22','01','02','03','04','05','bf'].reverse()
+        self.ser._ser.buffer = ['01','22','00','05','d8','10','22','01','02','03','04','05','bf']
+        self.ser._ser.buffer.reverse()
         n = Node(1, self.ser)
         memos = n._read_memo(0, 5, 'RAM')
         self.assertEqual(len(memos), 5)
         self.assertTrue(all([isinstance(m, MemoInstance) for m in memos]))
-        self.assertEqual(memos[0], '\x01')
-        self.assertEqual(memos[1], '\x02')
-        self.assertEqual(memos[2], '\x03')
-        self.assertEqual(memos[3], '\x05')
-        self.assertEqual(memos[4], '\x05')
+        self.assertEqual(memos[0].valor, b'\x01')
+        self.assertEqual(memos[1].valor, b'\x02')
+        self.assertEqual(memos[2].valor, b'\x03')
+        self.assertEqual(memos[3].valor, b'\x04')
+        self.assertEqual(memos[4].valor, b'\x05')
 
     def test_read_memo_inactive_app(self):
         with self.assertRaises(InactiveAppException):
@@ -217,7 +218,3 @@ class NodeTestCase(unittest2.TestCase):
 
     def test_write_memo_read_exception(self):
         pass
-
-
-if __name__ == '__main__':
-    unittest2.main()

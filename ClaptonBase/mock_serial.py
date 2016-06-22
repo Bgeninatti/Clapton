@@ -1,5 +1,6 @@
 import serial
 import struct
+import binascii
 from .exceptions import WriteException, ReadException, ChecksumException, NoMasterException, SerialConfigError
 
 
@@ -27,13 +28,13 @@ class MockSerial(object):
     def read(self, n=1):
         if self.raise_serial_error:
             self.raise_serial_error -= 1
-            raise serial.portNotOpenError
+            raise AttributeError
         rta = ''
         if not len(self.buffer):
-            return rta.decode('hex')
+            return binascii.unhexlify(rta)
         for i in range(n):
             rta += self.buffer.pop()
-        return rta.decode('hex')
+        return binascii.unhexlify(rta)
 
     def write(self, data):
         if self.raise_serial_error:

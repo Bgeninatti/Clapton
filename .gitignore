@@ -39,3 +39,7 @@ nosetests.xml
 coverage.xml
 *,cover
 .hypothesis/
+*.log
+
+# Virtualenv
+test-venv/

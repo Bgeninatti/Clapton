@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 import logging, time
 from logging.handlers import RotatingFileHandler
-from threading import _Event
-from cfg import *
+try:
+    from threading import _Event as Event
+except ImportError:
+    from threading import Event
+from .cfg import *
 
 
 def get_logger(logger_name, log_level=None, log_file=None, backup_count=1):
@@ -25,7 +28,7 @@ def get_logger(logger_name, log_level=None, log_file=None, backup_count=1):
     return logger
 
 
-class MasterEvent(_Event):
+class MasterEvent(Event):
 
     def __init__(self, *args, **kwargs):
         super(MasterEvent, self).__init__(*args, **kwargs)

@@ -8,7 +8,7 @@ setup(
     author='Bruno Geninatti',
     author_email='bruno@teknotrol.com',
     packages=['ClaptonBase',],
-    test_suite='tests.test_serial_instance',
+    test_suite='tests',
     install_requires=[
         'pyserial',
         'pyzmq'

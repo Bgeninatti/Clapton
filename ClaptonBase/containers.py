@@ -3,6 +3,7 @@ import struct
 import math
 import time
 import json
+import binascii
 from threading import Event, Lock
 
 from .cfg import *
@@ -24,17 +25,17 @@ class AppLine(object):
                 line = line.groups()[0]
             else:
                 raise TypeError
-            if decode.validate_cs(line.decode('hex')):
+            if decode.validate_cs(binascii.unhexlify(line)):
                 try:
                     line_parsed = PAQ_REGEX.search(line)
                     if line_parsed is not None:
                         line_parsed = line_parsed.groups()
                     else:
                         raise BadLineException
-                    self.longitud = struct.unpack('b', line_parsed[0].decode('hex'))[0]
-                    self.inicio = struct.unpack('H', (line_parsed[2] + line_parsed[1]).decode('hex'))[0]/2
+                    self.longitud = struct.unpack('b', binascii.unhexlify(line_parsed[0]))[0]
+                    self.inicio = struct.unpack('H', binascii.unhexlify(line_parsed[2] + line_parsed[1]))[0]/2
                     self.comando = line_parsed[3]
-                    datos = line_parsed[4].decode('hex')
+                    datos = binascii.unhexlify(line_parsed[4])
                     self.datos = datos[:-1]
                 except (struct.error, TypeError) as e:
                     raise BadLineException
@@ -74,13 +75,13 @@ class Paquete(object):
         if paq is not None:
             # Verifico el checksum del paquete.
             if decode.validate_cs(paq):
-                self.cs = paq[-1]
+                self.cs = paq[len(paq)-1:len(paq)]
             else:
                 raise ChecksumException
             # Decodifico las variables
             self.to_write = paq
-            self.origen, self.destino, _ = decode.fuen_des(paq[0])
-            self.funcion, self.longitud, _ = decode.fun_lon(paq[1])
+            self.origen, self.destino, _ = decode.fuen_des(paq[0:1])
+            self.funcion, self.longitud, _ = decode.fun_lon(paq[1:2])
             self.datos = paq[2:-1]
         # Paquete como parametros
         elif origen is not None and destino is not None and funcion is not None:
@@ -90,9 +91,9 @@ class Paquete(object):
             self.datos = datos if datos is not None else ''
             self.longitud = len(self.datos)
             self.cs = None
+            self._validate()
             # Creo cadena de bytes.
             self.to_write = self._make_paq()
-            self._validate()
             self.rta_size = self._get_rta_size()
         # Ninguna de las dos. Devuelvo un error.
         else:
@@ -105,19 +106,17 @@ class Paquete(object):
         # Creo funcion y longitud
         b2 = encode.fun_lon(self.funcion, self.longitud)
         # Guardo el checksum
-        self.cs = encode.checksum('{0}{1}{2}'.format(b1, b2, self.datos))
+        self.cs = encode.checksum(b1 + b2 + self.datos)
         # Lo junto y lo mando.
-        return '{0}{1}{2}{3}'.format(b1, b2, self.datos, self.cs)
+        return b1 + b2 + self.datos + self.cs
 
     def _make_representation(self):
-        return self.to_write.encode('hex')
+        return binascii.hexlify(self.to_write)
 
     def _validate(self):
-        """
-        Llegada a esta instancia la funcion ya fue validad y se asegura que esta
-        no es mayor a 8, sin embargo excepcion de PaqException se establece igual
-        """
-        if self.funcion == 0 and len(self.datos):
+        if self.funcion == 7:
+            raise PaqException('No se reconoce la funcion')
+        elif self.funcion == 0 and len(self.datos):
             # La funcion 0 siempre tiene que tener longitud de datos 0
             raise PaqException('La funcion 0 siempre tiene que tener longitud de datos 0.')
         elif self.funcion in READ_FUNCTIONS and len(self.datos) != 2:
@@ -132,8 +131,6 @@ class Paquete(object):
             raise PaqException('La funcion de lectura de aplicacion siempre tiene que tener longitud de datos 3.')
         elif self.funcion == 6 and len(self.datos) < 2:
             raise PaqException('Las funciones de escritura de aplicacion siempre tienen que tener longitud de datos mayor a 1.')
-        else:
-            PaqException('No se reconoce la funcion')
 
     def _get_rta_size(self):
         """
@@ -154,7 +151,7 @@ class Paquete(object):
             inicio, longitud = struct.unpack('Hb', self.datos)
             return longitud*2 + 3
         elif self.funcion == 6:
-            if self.datos == '\x00\x00\xa5\x05':
+            if self.datos == b'\x00\x00\xa5\x05':
                 return 4
             else:
                 return APP_LINE_SIZE + 2 + 3  # el dos es por la direccion y el 3 por el resto del paquete.
@@ -269,7 +266,7 @@ class Node(object):
             self._can_update.clear()
             self._logger.debug("Reportando estado del nodo %s.", str(self.lan_dir))
             self._status = value
-            self.ser.connection_socket.send(
+            self.ser.connection_socket.send_string(
                 '%s_%s %s %d %d' % (MSG_NODE_PREFIX, str(self.lan_dir), self.status, self.buffer, self.eeprom_size))
             if value == 1:
                 self.last_seen = time.time()
@@ -732,7 +729,7 @@ class Node(object):
                     tipo=instance,
                     indice=indice,
                     timestamp=timestamp,
-                    valor=paq.datos[k]
+                    valor=paq.datos[k:k+1]
                 )
                 if memo.tipo == 'RAM':
                     self.ram[indice] = memo
@@ -748,12 +745,12 @@ class Node(object):
             if instance == 'RAM':
                 self.ram_lock.acquire()
                 for i in range(inicio, inicio + longitud + 1):
-                    memo_instances.append(self.ram[i])
+                    memo_instances.append(self.ram[i:i+1])
                 self.ram_lock.release()
             elif instance == 'EEPROM':
                 self.eeprom_lock.acquire()
                 for i in range(inicio, inicio + longitud + 1):
-                    memo_instances.append(self.ram[i])
+                    memo_instances.append(self.ram[i:i+1])
                 self.eeprom_lock.release()
         return memo_instances
 
@@ -772,12 +769,12 @@ class Node(object):
         if not self.aplicacion_activa:
             raise InactiveAppException
 
-        self._logger.info("Escribiendo datos %s en nodo %s.", datos.encode('hex'), str(self.lan_dir))
+        self._logger.info("Escribiendo datos %s en nodo %s.", binascii.hexlify(datos), str(self.lan_dir))
         try:
             paq = Paquete(
                 destino=self.lan_dir,
                 funcion=MEMO_WRITE_NAMES[instance],
-                datos='%s%s' % (struct.pack('b', inicio), datos.decode('hex'))
+                datos='%s%s' % (struct.pack('b', inicio), binascii.unhexlify(datos))
             )
         except struct.error:
             raise EncodeError

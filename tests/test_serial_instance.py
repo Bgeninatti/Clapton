@@ -44,7 +44,7 @@ class SerialInstanceTestCase(unittest2.TestCase):
     def test_05_send_paq_ok(self):
         ser = SerialInterface(mocking=True).start()
         ser.im_master = True
-        paq = Paquete(origen=0, destino=1, funcion=1, datos='\x00\x05')
+        paq = Paquete(origen=0, destino=1, funcion=1, datos=b'\x00\x05')
         ser._ser.buffer = ['01','22','00','05','d8','10','22','01','02','03','04','05','bf']
         ser._ser.buffer.reverse()
         rta, echo = ser.send_paq(paq)
@@ -56,7 +56,7 @@ class SerialInstanceTestCase(unittest2.TestCase):
         with self.assertRaises(NoMasterException):
             ser = SerialInterface(mocking=True).start()
             ser.im_master = False
-            paq = Paquete(origen=0, destino=1, funcion=1, datos='\x00\x05')
+            paq = Paquete(origen=0, destino=1, funcion=1, datos=b'\x00\x05')
             rta, echo = ser.send_paq(paq)
         ser.stop()
 
@@ -71,7 +71,7 @@ class SerialInstanceTestCase(unittest2.TestCase):
         with self.assertRaises(ReadException):
             ser = SerialInterface(mocking=True).start()
             ser.im_master = True
-            paq = Paquete(origen=0, destino=1, funcion=1, datos='\x00\x05')
+            paq = Paquete(origen=0, destino=1, funcion=1, datos=b'\x00\x05')
             rta, echo = ser.send_paq(paq)
         ser.stop()
 
@@ -79,7 +79,7 @@ class SerialInstanceTestCase(unittest2.TestCase):
         with self.assertRaises(WriteException):
             ser = SerialInterface(mocking=True).start()
             ser.im_master = True
-            paq = Paquete(origen=0, destino=1, funcion=1, datos='\x00\x05')
+            paq = Paquete(origen=0, destino=1, funcion=1, datos=b'\x00\x05')
             ser._ser.buffer = ['01','22','00','05','d8']
             ser._ser.buffer.reverse()
             rta, echo = ser.send_paq(paq)
@@ -91,7 +91,7 @@ class SerialInstanceTestCase(unittest2.TestCase):
         ser._ser.buffer = ['01','22','00','05','d8','10','22','01','02','03','04','05','bf']
         ser._ser.buffer.reverse()
         gen = ser.read_paq()
-        paq = gen.next()
+        paq = next(gen)
         self.assertIsInstance(paq, Paquete)
         ser.stop()
 
@@ -101,7 +101,7 @@ class SerialInstanceTestCase(unittest2.TestCase):
             ser.im_master = False
             ser._ser.raise_serial_error = 1
             gen = ser.read_paq()
-            paq = gen.next()
+            paq = next(gen)
         ser.stop()
 
     def test_12_check_master_true(self):
@@ -124,7 +124,3 @@ class SerialInstanceTestCase(unittest2.TestCase):
             ser._ser.raise_serial_error = 1
             ser.check_master()
         ser.stop()
-
-
-if __name__ == '__main__':
-    unittest2.main()

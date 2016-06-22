@@ -1,5 +1,6 @@
 __author__ = 'bruno'
 import time, zmq, serial
+import binascii
 from threading import Thread, Lock, Event
 from random import random
 from . import decode
@@ -110,12 +111,12 @@ class SerialInterface(object):
         El formato de mensaje de la conexion del master es:  PREFIJO im_master want_master give_master node
         """
         self._logger.debug("Notificando estado de conexion y master.")
-        self.connection_socket.send("%s %d" % (MSG_CON_PREFIX, status))
+        self.connection_socket.send_string("%s %d" % (MSG_CON_PREFIX, status))
         msg = '%s %d %d %d' % (MSG_MASTER_PREFIX, self.im_master, self.want_master.isSet(), self.give_master.isSet()) \
             if not self.give_master.isSet() else \
             "%s %d %d %d %d" % \
             (MSG_MASTER_PREFIX, self.im_master, self.want_master.isSet(), self.give_master.isSet(), self.give_master.node)
-        self.connection_socket.send(msg)
+        self.connection_socket.send_string(msg)
 
     def send_paq(self, paq):
         """
@@ -141,7 +142,7 @@ class SerialInterface(object):
                 self._logger.debug('Escribiendo: %s', paq.representation)
                 self._ser.write(paq.to_write)
                 rta1 = self._ser.read(len(paq.to_write))
-                self._logger.debug('ECHO: %s', rta1.encode('hex'))
+                self._logger.debug('ECHO: %s', binascii.hexlify(rta1))
                 if not len(rta1):
                     self._logger.error('No hay respuesta del echo en paquete para el nodo %d', paq.destino)
                     raise ReadException
@@ -152,13 +153,13 @@ class SerialInterface(object):
                     raise ReadException
 
                 rta2 = self._ser.read(paq.rta_size)
-                self._logger.debug('Respuesta: %s', rta2.encode('hex'))
+                self._logger.debug('Respuesta: %s', binascii.hexlify(rta2))
                 try:
                     paq2 = Paquete(paq=rta2)
                 except (ChecksumException, IndexError) as e:
                     raise WriteException
                 return paq2, paq1
-            except (serial.portNotOpenError, AttributeError) as e:
+            except AttributeError as e:
                 self._ser.close()
                 self.ser_seted.clear()
                 raise WriteException
@@ -183,7 +184,7 @@ class SerialInterface(object):
                     if len(ser_buffer) == 1:
                         ser_buffer += self._ser.read()
                     try:
-                        funcion, longitud, _ = decode.fun_lon(ser_buffer[1])
+                        funcion, longitud, _ = decode.fun_lon(ser_buffer[1:2])
                         if len(ser_buffer) < longitud + 2:
                             ser_buffer += self._ser.read(longitud+2-len(ser_buffer))
                         if len(ser_buffer) < longitud + 3:
@@ -201,12 +202,12 @@ class SerialInterface(object):
                         self._ser.write(token_rta.to_write)
                         rta1 = self._ser.read(len(token_rta.to_write))
                         rta2 = self._ser.read(token_rta.rta_size)
-                        self._logger.info('Respuesta del master %s.', rta2.encode('hex'))
+                        self._logger.info('Respuesta del master %s.', binascii.hexlify(rta2))
                         self.check_master(ser_locked=True)
                         if self.im_master:
                             self.want_master.clear()
                     yield paq
-            except (serial.portNotOpenError, AttributeError) as e:
+            except AttributeError:
                 self._logger.error("Error en puerto serie.")
                 self._ser.close()
                 self.ser_seted.clear()
@@ -240,7 +241,7 @@ class SerialInterface(object):
                     read = self._ser.read()
                 self.im_master = len(read) == 0
                 self.notify_con_master()
-            except (serial.portNotOpenError, AttributeError) as e:
+            except AttributeError:
                 self._ser.close()
                 self.ser_seted.clear()
                 raise ReadException

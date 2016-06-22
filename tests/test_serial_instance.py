@@ -19,14 +19,16 @@ class SerialInstanceTestCase(unittest2.TestCase):
         ser.stop()
 
     def test_02_do_reconect_ok(self):
-        ser = SerialInterface(mocking=True).start()
+        ser = SerialInterface(mocking=True)
+        ser._do_connect()
         ser.ser_seted.clear()
         ser._do_reconect()
         self.assertTrue(ser.ser_seted.isSet())
         ser.stop()
 
     def test_03_do_reconect_instant_reconect(self):
-        ser = SerialInterface(mocking=True).start()
+        ser = SerialInterface(mocking=True)
+        ser._do_connect()
         ser.ser_seted.clear()
         ser._ser.raise_serial_error = 1
         ser._do_reconect()
@@ -34,7 +36,8 @@ class SerialInstanceTestCase(unittest2.TestCase):
         ser.stop()
 
     def test_04_do_reconect_long_reconect(self):
-        ser = SerialInterface(mocking=True).start()
+        ser = SerialInterface(mocking=True)
+        ser._do_connect()
         ser.ser_seted.clear()
         ser._ser.raise_serial_error = INSTANT_RECONECT_TRIES + 1
         ser._do_reconect()

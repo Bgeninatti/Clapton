@@ -38,6 +38,7 @@ DEFAULT_CONN_PORT = 5555
 MSG_CON_PREFIX = 'con'
 MSG_NODE_PREFIX = 'node'
 MSG_MASTER_PREFIX = 'master'
+COMMAND_SEPARATOR = '\n'
 
 # PAQUETES
 PAQ_REGEX = re.compile(r'([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]+)$')

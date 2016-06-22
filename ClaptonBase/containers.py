@@ -3,6 +3,7 @@ import math
 import time
 import json
 import binascii
+import sys
 from threading import Event, Lock
 
 from .cfg import *
@@ -87,12 +88,12 @@ class Paquete(object):
             self.origen = origen
             self.destino = destino
             self.funcion = funcion
-            self.datos = datos if datos is not None else ''
+            self.datos = datos if datos is not None else b''
             self.longitud = len(self.datos)
             self.cs = None
-            self._validate()
             # Creo cadena de bytes.
             self.to_write = self._make_paq()
+            self._validate()
             self.rta_size = self._get_rta_size()
         # Ninguna de las dos. Devuelvo un error.
         else:
@@ -110,7 +111,10 @@ class Paquete(object):
         return b1 + b2 + self.datos + self.cs
 
     def _make_representation(self):
-        return binascii.hexlify(self.to_write)
+        rep = binascii.hexlify(self.to_write)
+        if sys.version_info >= (3,):
+            rep = rep.decode()
+        return rep
 
     def _validate(self):
         if self.funcion == 7:
@@ -170,6 +174,17 @@ class MemoInstance(object):
         self.tipo = tipo
         self.indice = indice
         self.valor = valor
+        self.representation = self._make_representation()
+
+    def _make_representation(self):
+        parsed_data = binascii.hexlify(self.valor)
+        if sys.version_info >= (3,):
+            parsed_data = parsed_data.decode()
+        return '{1}{0}{2}{0}{3}'.format(
+            COMMAND_SEPARATOR,
+            self.timestamp,
+            self.indice,
+            parsed_data)
 
 
 class Node(object):
@@ -773,7 +788,7 @@ class Node(object):
             paq = Paquete(
                 destino=self.lan_dir,
                 funcion=MEMO_WRITE_NAMES[instance],
-                datos='%s%s' % (struct.pack('b', inicio), binascii.unhexlify(datos))
+                datos=struct.pack('b', inicio) + datos
             )
         except struct.error:
             raise EncodeError

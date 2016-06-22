@@ -1,4 +1,3 @@
-__author__ = 'bruno'
 import struct
 import math
 import time

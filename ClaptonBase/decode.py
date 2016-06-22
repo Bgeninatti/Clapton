@@ -1,4 +1,3 @@
-__author__ = 'bruno'
 import struct
 import sys
 from .exceptions import DecodeError

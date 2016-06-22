@@ -1,4 +1,3 @@
-__author__ = 'bruno'
 from setuptools import setup
 
 setup(
@@ -9,8 +8,5 @@ setup(
     author_email='bruno@teknotrol.com',
     packages=['ClaptonBase',],
     test_suite='tests',
-    install_requires=[
-        'pyserial',
-        'pyzmq'
-    ],
+    install_requires=['pyserial', 'pyzmq'],
 )

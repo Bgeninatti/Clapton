@@ -1,4 +1,3 @@
-__author__ = 'bruno'
 import time, zmq, serial
 import binascii
 from threading import Thread, Lock, Event

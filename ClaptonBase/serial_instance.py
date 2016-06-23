@@ -48,7 +48,6 @@ class SerialInterface(object):
 
     def start(self):
         self.connection_thread.start()
-        self.check_master()
         return self
 
     def stop(self):
@@ -90,6 +89,7 @@ class SerialInterface(object):
             else:
                 self._ser = MockSerial(port=self._serial_port, baudrate=self._baudrate, timeout=self._timeout)
             self.ser_seted.set()
+            self.check_master()
         except (serial.SerialException, OSError) as e:
             self._logger.error('Error intentando abrir el puerto serie: %s' % str(e))
             raise SerialConfigError
@@ -233,8 +233,8 @@ class SerialInterface(object):
             self._logger.info('Bloqueando puerto serie.')
             self.using_ser.acquire()
         timeout = time.time() + WAIT_MASTER_PERIOD
-        if self.ser_seted.isSet():
-            try:
+        try:
+            if self.ser_seted.isSet():
                 read = ''
                 self._ser.flushInput()
                 while not len(read):
@@ -243,12 +243,12 @@ class SerialInterface(object):
                     read = self._ser.read()
                 self.im_master = len(read) == 0
                 self.notify_con_master()
-            except AttributeError:
-                self._ser.close()
-                self.ser_seted.clear()
-                raise ReadException
+        except AttributeError:
+            self._ser.close()
+            self.ser_seted.clear()
+            raise ReadException
 
-            finally:
-                if not ser_locked:
-                    self.using_ser.release()
+        finally:
+            if not ser_locked:
+                self.using_ser.release()
         self._logger.info('Master: %s' % str(self.im_master))

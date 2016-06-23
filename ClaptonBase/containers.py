@@ -759,12 +759,12 @@ class Node(object):
             if instance == 'RAM':
                 self.ram_lock.acquire()
                 for i in range(inicio, inicio + longitud + 1):
-                    memo_instances.append(self.ram[i:i+1])
+                    memo_instances.append(self.ram[i])
                 self.ram_lock.release()
             elif instance == 'EEPROM':
                 self.eeprom_lock.acquire()
                 for i in range(inicio, inicio + longitud + 1):
-                    memo_instances.append(self.ram[i:i+1])
+                    memo_instances.append(self.eeprom[i])
                 self.eeprom_lock.release()
         return memo_instances
 

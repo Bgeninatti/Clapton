@@ -4,7 +4,7 @@ from threading import Thread, Lock, Event
 from random import random
 from . import decode
 from .exceptions import WriteException, ReadException, ChecksumException, \
-    NoMasterException, SerialConfigError, NoSlaveException
+    NoMasterException, SerialConfigError, NoSlaveException, DecodeError
 from .containers import Paquete
 from .cfg import *
 from .utils import get_logger, MasterEvent, GiveMasterEvent

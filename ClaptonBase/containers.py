@@ -477,36 +477,44 @@ class Node(object):
             self._can_update.wait()
             if self._can_update.isSet():
                 self._can_update.clear()
-                self.buffer = struct.unpack('b', rta.datos[5:6])[0]
-                self.eeprom_size = struct.unpack('b', rta.datos[2:3])[0] * 64
-                self.initapp = struct.unpack('b', rta.datos[1:2])[0] * 256
-                self.fnapp = struct.unpack('b', rta.datos[0:1])[0] * 256 + 255
-                self.ram_read = struct.unpack('b', rta.datos[7:8])[0]
-                self.ram_write = struct.unpack('b', rta.datos[6:7])[0]
-                self.ini_eeprom = struct.unpack('b', rta.datos[9:10])[0]
-                self.ini_config = struct.unpack('b', rta.datos[8:9])[0]
-                servicio0 = struct.unpack('b', rta.datos[3:4])[0]
-                servicio1 = struct.unpack('b', rta.datos[4:5])[0]
-                self.puede_master = servicio1 & 0b10000000
-                self.tiene_eeprom = servicio1 & 0b00000001
-                self.servicios = {
-                    '0b7': {'estado': servicio0 & 0b10000000, 'desc': 'Puede ser maestro.'},
-                    '0b6': {'estado': servicio0 & 0b01000000, 'desc': 'Tiene entradas analogicas de alta resolucion.'},
-                    '0b5': {'estado': servicio0 & 0b00100000, 'desc': 'Tiene entradas digitales o analogicas de baja resolucion.'},
-                    '0b4': {'estado': servicio0 & 0b00010000, 'desc': 'Tiene salidas analogicas o tipo PWM.'},
-                    '0b3': {'estado': servicio0 & 0b00001000, 'desc': 'Tiene salidas a rele o digitales a transistor.'},
-                    '0b2': {'estado': servicio0 & 0b00000100, 'desc': 'Tiene entradas de cuenta de alta velocidad.'},
-                    '0b1': {'estado': servicio0 & 0b00000010, 'desc': 'Tiene display y/o pulsadores.'},
-                    '0b0': {'estado': servicio0 & 0b00000001, 'desc': 'Tiene EEPROM.'},
-                    '1b7': {'estado': servicio1 & 0b10000000, 'desc': 'No implementado.'},
-                    '1b6': {'estado': servicio1 & 0b01000000, 'desc': 'No implementado.'},
-                    '1b5': {'estado': servicio1 & 0b00100000, 'desc': 'No implementado.'},
-                    '1b4': {'estado': servicio1 & 0b00010000, 'desc': 'No implementado.'},
-                    '1b3': {'estado': servicio1 & 0b00001000, 'desc': 'No implementado.'},
-                    '1b2': {'estado': servicio1 & 0b00000100, 'desc': 'No implementado.'},
-                    '1b1': {'estado': servicio1 & 0b00000010, 'desc': 'No implementado.'},
-                    '1b0': {'estado': servicio1 & 0b00000001, 'desc': 'No implementado.'}
-                }
+                self.fnapp = struct.unpack('b', rta.datos[0:1])[0] * 256 + 255 \
+                    if len(rta.datos[0:1]) else None
+                self.initapp = struct.unpack('b', rta.datos[1:2])[0] * 256 \
+                    if len(rta.datos[1:2]) else None
+                self.eeprom_size = struct.unpack('b', rta.datos[2:3])[0] * 64 \
+                    if len(rta.datos[2:3]) else None
+                self.buffer = struct.unpack('b', rta.datos[5:6])[0] \
+                    if len(rta.datos[5:6]) else None
+                self.ram_write = struct.unpack('b', rta.datos[6:7])[0] \
+                    if len(rta.datos[6:7]) else None
+                self.ram_read = struct.unpack('b', rta.datos[7:8])[0] \
+                    if len(rta.datos[7:8]) else None
+                self.ini_config = struct.unpack('b', rta.datos[8:9])[0] \
+                    if len(rta.datos[8:9]) else None
+                self.ini_eeprom = struct.unpack('b', rta.datos[9:10])[0] \
+                    if len(rta.datos[9:10]) else None
+                if len(rta.datos[3:4]):
+                    servicio0 = struct.unpack('b', rta.datos[3:4])[0]
+                    self.servicios['0b7'] = {'estado': servicio0 & 0b10000000, 'desc': 'Puede ser maestro.'}
+                    self.servicios['0b6'] = {'estado': servicio0 & 0b01000000, 'desc': 'Tiene entradas analogicas de alta resolucion.'}
+                    self.servicios['0b5'] = {'estado': servicio0 & 0b00100000, 'desc': 'Tiene entradas digitales o analogicas de baja resolucion.'}
+                    self.servicios['0b4'] = {'estado': servicio0 & 0b00010000, 'desc': 'Tiene salidas analogicas o tipo PWM.'}
+                    self.servicios['0b3'] = {'estado': servicio0 & 0b00001000, 'desc': 'Tiene salidas a rele o digitales a transistor.'}
+                    self.servicios['0b2'] = {'estado': servicio0 & 0b00000100, 'desc': 'Tiene entradas de cuenta de alta velocidad.'}
+                    self.servicios['0b1'] = {'estado': servicio0 & 0b00000010, 'desc': 'Tiene display y/o pulsadores.'}
+                    self.servicios['0b0'] = {'estado': servicio0 & 0b00000001, 'desc': 'Tiene EEPROM.'}
+                if len(rta.datos[4:5]):
+                    servicio1 = struct.unpack('b', rta.datos[4:5])[0]
+                    self.puede_master = servicio1 & 0b10000000
+                    self.tiene_eeprom = servicio1 & 0b00000001
+                    self.servicios['1b7'] = {'estado': servicio1 & 0b10000000, 'desc': 'No implementado.'}
+                    self.servicios['1b6'] = {'estado': servicio1 & 0b01000000, 'desc': 'No implementado.'}
+                    self.servicios['1b5'] = {'estado': servicio1 & 0b00100000, 'desc': 'No implementado.'}
+                    self.servicios['1b4'] = {'estado': servicio1 & 0b00010000, 'desc': 'No implementado.'}
+                    self.servicios['1b3'] = {'estado': servicio1 & 0b00001000, 'desc': 'No implementado.'}
+                    self.servicios['1b2'] = {'estado': servicio1 & 0b00000100, 'desc': 'No implementado.'}
+                    self.servicios['1b1'] = {'estado': servicio1 & 0b00000010, 'desc': 'No implementado.'}
+                    self.servicios['1b0'] = {'estado': servicio1 & 0b00000001, 'desc': 'No implementado.'}
                 self.identified = True
                 status = 1
         except IndexError:

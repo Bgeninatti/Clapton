@@ -113,11 +113,11 @@ class SerialInterface(object):
         El formato de mensaje de la conexion del master es:  PREFIJO im_master want_master give_master node
         """
         self._logger.debug("Notificando estado de conexion y master.")
-        self.connection_socket.send_string("%s %d" % (MSG_CON_PREFIX, status))
-        msg = '%s %d %d %d' % (MSG_MASTER_PREFIX, self.im_master, self.want_master.isSet(), self.give_master.isSet()) \
+        self.connection_socket.send_string("{1}{0}{2}".format(COMMAND_SEPARATOR, MSG_CON_PREFIX, status))
+        msg = '{1}{0}{2}{0}{3}{0}{4}'.format(COMMAND_SEPARATOR, MSG_MASTER_PREFIX, self.im_master, self.want_master.isSet(), self.give_master.isSet()) \
             if not self.give_master.isSet() else \
-            "%s %d %d %d %d" % \
-            (MSG_MASTER_PREFIX, self.im_master, self.want_master.isSet(), self.give_master.isSet(), self.give_master.node)
+            "{1}{0}{2}{0}{3}{0}{4}{0}{5}".format(
+                COMMAND_SEPARATOR, MSG_MASTER_PREFIX, self.im_master, self.want_master.isSet(), self.give_master.isSet(), self.give_master.node)
         self.connection_socket.send_string(msg)
 
     def send_paq(self, paq):

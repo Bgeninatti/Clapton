@@ -169,7 +169,7 @@ class MemoInstance(object):
     def __init__(self, nodo, tipo, indice, timestamp=None, valor=None):
         # contenedor dummy de atributos. Los datos no son requeridos para podera armar la memoria de a dos paquetes
         # cuando no soy master.
-        self.timestamp = int(timestamp*1000) if timestamp is not None else None
+        self.timestamp = timestamp
         self.nodo = nodo
         self.tipo = tipo
         self.indice = indice

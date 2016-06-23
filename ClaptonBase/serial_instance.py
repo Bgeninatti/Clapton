@@ -18,7 +18,8 @@ class SerialInterface(object):
                  timeout=DEFAULT_SERIAL_TIMEOUT,
                  log_level=DEFAULT_LOG_LVL,
                  log_file=DEFAULT_LOG_FILE,
-                 mocking=False):
+                 mocking=False,
+                 autostart=True):
 
         self._logger = get_logger(__name__, log_level, log_file)
         self._logger.info("Iniciando SerialInstance.")
@@ -42,6 +43,8 @@ class SerialInterface(object):
         self.im_master = False
         self.want_master = MasterEvent()
         self.give_master = GiveMasterEvent()
+        if autostart:
+            self.start()
 
     def start(self):
         self.connection_thread.start()

@@ -185,6 +185,8 @@ class SerialInterface(object):
                     ser_buffer += self._ser.read(3)
                     if len(ser_buffer) == 1:
                         ser_buffer += self._ser.read()
+                    elif not len(ser_buffer):
+                        raise IndexError
                     try:
                         funcion, longitud, _ = decode.fun_lon(ser_buffer[1:2])
                         if len(ser_buffer) < longitud + 2:

@@ -477,16 +477,16 @@ class Node(object):
             self._can_update.wait()
             if self._can_update.isSet():
                 self._can_update.clear()
-                self.buffer = struct.unpack('b', rta.datos[5])[0]
-                self.eeprom_size = struct.unpack('b', rta.datos[2])[0] * 64
-                self.initapp = struct.unpack('b', rta.datos[1])[0] * 256
-                self.fnapp = struct.unpack('b', rta.datos[0])[0] * 256 + 255
-                self.ram_read = struct.unpack('b', rta.datos[7])[0]
-                self.ram_write = struct.unpack('b', rta.datos[6])[0]
-                self.ini_eeprom = struct.unpack('b', rta.datos[9])[0]
-                self.ini_config = struct.unpack('b', rta.datos[8])[0]
-                servicio0 = struct.unpack('b', rta.datos[3])[0]
-                servicio1 = struct.unpack('b', rta.datos[4])[0]
+                self.buffer = struct.unpack('b', rta.datos[5:6])[0]
+                self.eeprom_size = struct.unpack('b', rta.datos[2:3])[0] * 64
+                self.initapp = struct.unpack('b', rta.datos[1:2])[0] * 256
+                self.fnapp = struct.unpack('b', rta.datos[0:1])[0] * 256 + 255
+                self.ram_read = struct.unpack('b', rta.datos[7:8])[0]
+                self.ram_write = struct.unpack('b', rta.datos[6:7])[0]
+                self.ini_eeprom = struct.unpack('b', rta.datos[9:10])[0]
+                self.ini_config = struct.unpack('b', rta.datos[8:9])[0]
+                servicio0 = struct.unpack('b', rta.datos[3:4])[0]
+                servicio1 = struct.unpack('b', rta.datos[4:5])[0]
                 self.puede_master = servicio1 & 0b10000000
                 self.tiene_eeprom = servicio1 & 0b00000001
                 self.servicios = {

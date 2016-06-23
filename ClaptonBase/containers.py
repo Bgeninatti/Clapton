@@ -257,7 +257,7 @@ class Node(object):
         self.enable_ram_sector(*required_ram_index)
 
         # En donde se almacenaran los servicios leidos del pic
-        self.servicios = None
+        self.servicios = {}
 
 
     @property

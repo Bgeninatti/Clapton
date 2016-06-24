@@ -114,10 +114,15 @@ class SerialInterface(object):
         """
         self._logger.debug("Notificando estado de conexion y master.")
         self.connection_socket.send_string("{1}{0}{2}".format(COMMAND_SEPARATOR, MSG_CON_PREFIX, status))
-        msg = '{1}{0}{2}{0}{3}{0}{4}'.format(COMMAND_SEPARATOR, MSG_MASTER_PREFIX, self.im_master, self.want_master.isSet(), self.give_master.isSet()) \
-            if not self.give_master.isSet() else \
-            "{1}{0}{2}{0}{3}{0}{4}{0}{5}".format(
-                COMMAND_SEPARATOR, MSG_MASTER_PREFIX, self.im_master, self.want_master.isSet(), self.give_master.isSet(), self.give_master.node)
+        msg = '{1}{0}{2}{0}{3}{0}{4}'.format(
+                COMMAND_SEPARATOR,
+                MSG_MASTER_PREFIX,
+                int(self.im_master),
+                int(self.want_master.isSet()),
+                int(self.give_master.isSet()))
+        if self.give_master.isSet():
+            msg = '{1}{0}{2}'.format(msg, self.give_master.node)
+
         self.connection_socket.send_string(msg)
 
     def send_paq(self, paq):

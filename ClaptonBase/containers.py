@@ -180,10 +180,12 @@ class MemoInstance(object):
         parsed_data = binascii.hexlify(self.valor)
         if sys.version_info >= (3,):
             parsed_data = parsed_data.decode()
-        return '{1}{0}{2}{0}{3}'.format(
+        return '{1}_{2}_{3}{0}{4}{0}{5}'.format(
             COMMAND_SEPARATOR,
-            self.timestamp,
+            self.nodo,
+            self.tipo,
             self.indice,
+            self.timestamp,
             parsed_data)
 
 

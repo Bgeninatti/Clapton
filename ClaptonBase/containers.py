@@ -283,7 +283,15 @@ class Node(object):
             self._logger.debug("Reportando estado del nodo %s.", str(self.lan_dir))
             self._status = value
             self.ser.connection_socket.send_string(
-                '%s_%s %s %d %d' % (MSG_NODE_PREFIX, str(self.lan_dir), self.status, self.buffer, self.eeprom_size))
+                '{1}_{2}{0}{3}{0}{4}{0}{5}'.format(
+                    COMMAND_SEPARATOR,
+                    MSG_NODE_PREFIX,
+                    self.lan_dir,
+                    self.status,
+                    self.buffer,
+                    self.eeprom_size, 
+                    self.ram_read,
+                    self.ram_write))
             if value == 1:
                 self.last_seen = time.time()
             self._can_update.set()

@@ -283,7 +283,7 @@ class Node(object):
             self._logger.debug("Reportando estado del nodo %s.", str(self.lan_dir))
             self._status = value
             self.ser.connection_socket.send_string(
-                '{1}_{2}{0}{3}{0}{4}{0}{5}'.format(
+                '{1}_{2}{0}{3}{0}{4}{0}{5}{0}{6}{0}{7}'.format(
                     COMMAND_SEPARATOR,
                     MSG_NODE_PREFIX,
                     self.lan_dir,

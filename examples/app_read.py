@@ -5,7 +5,7 @@ logger = logging.getLogger(__name__)
 LAN_DIR = 14
 
 logger.info('Creando nodo en dirección {}', LAN_DIR)
-node = Node(LAN_DIR, serial_instance.SerialInterface())
+node = containers.Node(LAN_DIR, serial_instance.SerialInterface())
 logger.info('Pidiendo desactivación de la aplicación')
 node.deactivate_app()
 logger.info('Leyendo aplicación del nodo.')

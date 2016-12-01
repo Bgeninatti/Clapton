@@ -621,7 +621,7 @@ class Node(object):
             raise InactiveAppException
 
         self._logger.info("Desactivando aplicacion del nodo %s.", str(self.lan_dir))
-        paq = Paquete(destino=self.lan_dir, funcion=6, datos='\x01\xff')
+        paq = Paquete(destino=self.lan_dir, funcion=6, datos=b'\x01\xff')
         rta, _ = self.ser.send_paq(paq)
         if rta.datos != APP_STATE_RESPONSE:
             raise ActiveAppException
@@ -679,7 +679,7 @@ class Node(object):
         if self.aplicacion_activa:
             raise ActiveAppException
         self._logger.info("Reactivando aplicacion del nodo %s.", str(self.lan_dir))
-        paq = Paquete(destino=self.lan_dir, funcion=6, datos='\x00\x00\xa5\x05')
+        paq = Paquete(destino=self.lan_dir, funcion=6, datos=b'\x00\x00\xa5\x05')
         rta, _ = self.ser.send_paq(paq)
         if rta.datos != APP_ACTIVATE_RESPONSE:
             raise InactiveAppException

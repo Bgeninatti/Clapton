@@ -4,17 +4,17 @@ from ClaptonBase import serial_instance, containers
 logger = logging.getLogger(__name__)
 LAN_DIR = 14
 
-logger.INFO('Creando nodo en dirección {}', LAN_DIR)
+logger.info('Creando nodo en dirección {}', LAN_DIR)
 node = Node(LAN_DIR, serial_instance.SerialInterface())
-logger.INFO('Pidiendo desactivación de la aplicación')
+logger.info('Pidiendo desactivación de la aplicación')
 node.deactivate_app()
-logger.INFO('Leyendo aplicación del nodo.')
+logger.info('Leyendo aplicación del nodo.')
 lineas_aplicacion = list()
 for inicio in range(node.initapp, math.ceil(node.fnapp/node.buffer)+1):
     longitud = inicio + node.buffer if inicio + node.buffer < node.fnapp else node.fnapp - inicio
     linea = node.read_app_line(inicio, longitud)
     lineas_aplicacion.append(lineas_aplicacion)
-    logger.INFO('{} {}', linea.inicio, linea.datos)
-logger.INFO('Reactivando la aplicación.')
+    logger.info('{} {}', linea.inicio, linea.datos)
+logger.info('Reactivando la aplicación.')
 node.activate_app()
-logger.INFO('Reactivación completa.')
+logger.info('Reactivación completa.')

@@ -623,7 +623,7 @@ class Node(object):
         self._logger.info("Desactivando aplicacion del nodo %s.", str(self.lan_dir))
         paq = Paquete(destino=self.lan_dir, funcion=6, datos=b'\x01\xff')
         rta, _ = self.ser.send_paq(paq)
-        if rta.datos != APP_STATE_RESPONSE:
+        if rta.datos != APP_DEACTIVATE_RESPONSE:
             raise ActiveAppException
         else:
             if blocking:

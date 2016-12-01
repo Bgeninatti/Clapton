@@ -1,0 +1,18 @@
+Para verificar el estado de aplciación se debe verificar la bander LAB_GEN ubicada en la dirección 00 de la ram, haya o no aplicación. Si no hay aplicación es la única palabra que se puede leer y cuando se pide el paquete de identificación se indica que tiene una sola posición de RAM.
+LAB_GEN
+
+bit 6 si está en 1 hay pedidos de desactivación pendiente.
+bit 7 si está en 1 la aplicación está activa si está en 0 la aplicación está inactiva.
+
+
+
+hay 6 codigos de error para esa funcion
+00: La aplicación está activa pero se solicitó desactivación.
+01: Solicitud de reactivación fallida. Por no cumplirse la condición de reactivación. La dirección 0000 tiene que tener los valores 05a5. En el paquete se manda 0000a505.
+02: Pedido de reactivación exitosa.
+03: Intento de escritura fuera de rango.
+04: La escritura no tiene datos ni dirección. Mal formato en paquete de escritura.
+05: La escritura tiene dirección pero no datos.
+06: La dirección del programa no es múltiplo de 4.
+
+

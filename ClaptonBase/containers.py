@@ -13,6 +13,10 @@ from .exceptions import ChecksumException, WriteException, ReadException, TokenE
 from .utils import get_logger
 
 
+APP_ACTIVATE_RESPONSE = '\x02'
+APP_DEACTIVATE_RESPONSE = '\x00'
+
+
 class AppLine(object):
 
     def __init__(self, **kwargs):
@@ -218,6 +222,7 @@ class Node(object):
         self._status = 0
         self.im_master = is_master  # Rol del esclavo.
         self.aplicacion_activa = True
+        self.solicitud_desactivacion = False
 
         self.eeprom = {}
         self.eeprom_lock = Lock()
@@ -289,7 +294,7 @@ class Node(object):
                     self.lan_dir,
                     self.status,
                     self.buffer,
-                    self.eeprom_size, 
+                    self.eeprom_size,
                     self.ram_read,
                     self.ram_write))
             if value == 1:
@@ -603,7 +608,7 @@ class Node(object):
         line = AppLine(inicio=inicio*2, paq=rta)
         return line
 
-    def deactivate_app(self):
+    def deactivate_app(self, blocking=True):
         """
         :return: None
         :raise:
@@ -618,10 +623,16 @@ class Node(object):
         self._logger.info("Desactivando aplicacion del nodo %s.", str(self.lan_dir))
         paq = Paquete(destino=self.lan_dir, funcion=6, datos='\x01\xff')
         rta, _ = self.ser.send_paq(paq)
-        if rta.datos != '\x02':
+        if rta.datos != APP_STATE_RESPONSE:
             raise ActiveAppException
         else:
-            self.aplicacion_activa = False
+            if blocking:
+                while self.aplicacion_activa:
+                    solicitud, estado = self.check_app_state()
+                    if not estado:
+                        return
+                    elif not solicitud:
+                        raise ActiveAppException
 
     def write_app_line(self, line):
         """
@@ -670,10 +681,16 @@ class Node(object):
         self._logger.info("Reactivando aplicacion del nodo %s.", str(self.lan_dir))
         paq = Paquete(destino=self.lan_dir, funcion=6, datos='\x00\x00\xa5\x05')
         rta, _ = self.ser.send_paq(paq)
-        if rta.datos != '\x02':
+        if rta.datos != APP_ACTIVATE_RESPONSE:
             raise InactiveAppException
         else:
             self.aplicacion_activa = True
+
+    def check_app_state(self):
+        paq_lab_gen = self.read_ram(0,1)[0]
+        self.aplicacion_activa = bool(paq_lab_gen & 0b00000001)
+        self.solicitud_desactivacion = bool(paq_lab_gen & 0b00000010)
+        return (self.solicitud_desactivacion, self.aplicacion_activa)
 
     def _update_to_read_eeprom(self):
         self._can_update.wait()

@@ -10,6 +10,7 @@ from .cfg import *
 from .utils import get_logger, MasterEvent, GiveMasterEvent
 from .mock_serial import MockSerial
 
+
 class SerialInterface(object):
     def __init__(self,
                  serial_port='/dev/ttyAMA0',

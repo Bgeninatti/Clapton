@@ -58,7 +58,7 @@ class AppLine(object):
         datos = binascii.hexlify(self.datos).decode()
         cs = encode.checksum(binascii.unhexlify('{0}{1}{2}{3}'.format(longitud, inicio, self.comando, datos))).decode()
 
-        return ':{0}{1}{2}{3}{4}'.format(longitud, inicio, comando, datos).upper()
+        return ':{0}{1}{2}{3}{4}'.format(longitud, inicio, comando, datos, cs).upper()
 
 class Paquete(object):
 

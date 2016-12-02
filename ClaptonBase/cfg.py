@@ -5,7 +5,7 @@ GRABA_MAX_BYTES = 8
 APP_LINE_SIZE = 8
 APP_INIT_CONFIG = 8192
 APP_INIT_E2 = 8448
-
+END_LINE = ':00000001FF'
 
 # Puerto serie
 DEFAULT_BAUDRATE = 2400
@@ -41,8 +41,7 @@ MSG_MASTER_PREFIX = 'master'
 COMMAND_SEPARATOR = '\n'
 
 # PAQUETES
-PAQ_REGEX = re.compile(r'([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]+)$')
-LINE_REGEX = re.compile(r'([0-9A-F]+)')
+LINE_REGEX = re.compile(r':([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]+)$')
 
 # INFORMACION DE FUNCIONES
 READ_FUNCTIONS = (1, 3)

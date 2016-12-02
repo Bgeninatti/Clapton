@@ -26,21 +26,17 @@ class AppLine(object):
         if line is not None:
             line = LINE_REGEX.search(line)
             if line is not None:
-                line = line.groups()[0]
+                line_parsed = line.groups()
             else:
-                raise TypeError
-            if decode.validate_cs(binascii.unhexlify(line)):
+                raise BadLineException
+            if decode.validate_cs(binascii.unhexlify(''.join(line_parsed))):
                 try:
-                    line_parsed = PAQ_REGEX.search(line)
-                    if line_parsed is not None:
-                        line_parsed = line_parsed.groups()
-                    else:
-                        raise BadLineException
                     self.longitud = struct.unpack('b', binascii.unhexlify(line_parsed[0]))[0]
                     self.inicio = int(struct.unpack('H', binascii.unhexlify(line_parsed[2] + line_parsed[1]))[0]/2)
                     self.comando = line_parsed[3]
                     datos = binascii.unhexlify(line_parsed[4])
                     self.datos = datos[:-1]
+                    self.cs = datos[-1:]
                 except (struct.error, TypeError) as e:
                     raise BadLineException
             else:
@@ -55,6 +51,13 @@ class AppLine(object):
         dir_inicio = struct.pack('H', self.inicio)
         return dir_inicio + ''.join([self.datos[i] for i in range(len(self.datos)) if i % 2])
 
+    def to_write(self):
+        longitud = binascii.hexlify(struct.pack('b', self.longitud)).decode()
+        pre_inicio = binascii.hexlify(struct.pack('H', self.inicio*2)).decode()
+        inicio = inicio_pre[2:4].decode() + inicio_pre[0:2].decode()
+        datos = binascii.hexlify(self.datos)
+        cs = binascii.hexlify(self.cs).decode()
+        return ':{0}{1}{2}{3}{4}'.format(longitud, inicio, comando, datos).upper()
 
 class Paquete(object):
 

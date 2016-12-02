@@ -1,24 +1,37 @@
-import logging, math
+import logging, math, argparse
 from ClaptonBase import serial_instance, containers
 
-logger = logging.getLogger(__name__)
-LAN_DIR = 1
+parser = argparse.ArgumentParser(description='Maneja nodos y archivo HEX de salida')
+parser.add_argument(['--node', '-n'], type=int, nargs=1, dest="lan_dir", help="Dirección del nodo del que se quiere bajar el programa.")
+parser.add_argument(['--file', '-f'], type=str, nargs=1, dest="file_name", help="Nombre del archivo HEX de destino.")
 
-logger.info('Creando nodo en dirección {}', LAN_DIR)
-node = containers.Node(LAN_DIR, serial_instance.SerialInterface())
+
+
+args = parser.parse_args()
+logger = logging.getLogger(__name__)
+hex_regex = re.compile(r'^.*.hex$', re.IGNORECASE)
+if hex_regex.search(args.file_name) is not None:
+    filename = args.file_name.lower()
+else:
+    filename = '{}.hex'.format(args.file_name)
+
+logger.info('Creando nodo en dirección {}', args.lan_dir)
+
+ser = serial_instance.SerialInterface()
+node = containers.Node(LAN_DIR, ser)
 logger.info('Checkeando estado del master')
 node.ser.check_master()
 node.identify()
 if node.ser.im_master:
     logger.info('Leyendo aplicación del nodo.')
-    lineas_aplicacion = list()
-    inicio = node.initapp
-    for i in range(0, math.ceil((node.fnapp - node.initapp)/node.buffer)):
-        longitud = node.buffer if inicio + node.buffer < node.fnapp else node.fnapp - inicio
-        linea = node.read_app_line(inicio, longitud)
-        lineas_aplicacion.append(linea)
-        logger.info('{} {}', linea.inicio, linea.datos)
-        inicio += node.buffer
+    with open(filename, 'w') as write_file:
+        inicio = node.initapp
+        for i in range(0, math.ceil((node.fnapp - node.initapp)/node.buffer)):
+            longitud = node.buffer if inicio + node.buffer < node.fnapp else node.fnapp - inicio
+            linea = node.read_app_line(inicio, longitud)
+            write_file.write(linea.to_write())
+            inicio += node.buffer
     logger.info('Se leyeron {} lineas de la aplicacion.'.format(len(lineas_aplicacion)))
 else:
     logger.error('No puedo leer la aplicacion si no soy master')
+ser.stop()

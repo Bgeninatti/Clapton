@@ -37,7 +37,7 @@ class AppLine(object):
                     else:
                         raise BadLineException
                     self.longitud = struct.unpack('b', binascii.unhexlify(line_parsed[0]))[0]
-                    self.inicio = struct.unpack('H', binascii.unhexlify(line_parsed[2] + line_parsed[1]))[0]/2
+                    self.inicio = int(struct.unpack('H', binascii.unhexlify(line_parsed[2] + line_parsed[1]))[0]/2)
                     self.comando = line_parsed[3]
                     datos = binascii.unhexlify(line_parsed[4])
                     self.datos = datos[:-1]
@@ -46,7 +46,7 @@ class AppLine(object):
             else:
                 raise BadLineException
         elif (paq is not None) and (inicio is not None):
-            self.longitud = paq.longitud/2
+            self.longitud = int(paq.longitud/2)
             self.inicio = inicio
             self.datos = paq.datos
             self.comando = '00'
@@ -621,7 +621,7 @@ class Node(object):
             raise InactiveAppException
 
         self._logger.info("Desactivando aplicacion del nodo %s.", str(self.lan_dir))
-        paq = Paquete(destino=self.lan_dir, funcion=6, datos=b'\x01\xff')
+        paq = Paquete(destino=self.lan_dir, funcion=6, datos=b'\x00\x01\xff\xff')
         rta, _ = self.ser.send_paq(paq)
         if rta.datos != APP_DEACTIVATE_RESPONSE:
             raise ActiveAppException
@@ -658,7 +658,7 @@ class Node(object):
                     funcion=6,
                     datos=struct.pack('H', line.inicio + sum_inicio) + part
                 )
-                sum_inicio += GRABA_MAX_BYTES/2
+                sum_inicio += int(GRABA_MAX_BYTES/2)
                 rta, _ = self.ser.send_paq(paq)
         elif line.inicio > APP_INIT_E2:
             paq = Paquete(
@@ -688,8 +688,8 @@ class Node(object):
 
     def check_app_state(self):
         paq_lab_gen = self.read_ram(0,1)[0]
-        self.aplicacion_activa = bool(paq_lab_gen & 0b00000001)
-        self.solicitud_desactivacion = bool(paq_lab_gen & 0b00000010)
+        self.aplicacion_activa = bool(paq_lab_gen.valor & 0b00000001)
+        self.solicitud_desactivacion = bool(paq_lab_gen.valor & 0b00000010)
         return (self.solicitud_desactivacion, self.aplicacion_activa)
 
     def _update_to_read_eeprom(self):

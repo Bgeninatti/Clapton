@@ -2,7 +2,7 @@ import logging
 from ClaptonBase import serial_instance, containers
 
 logger = logging.getLogger(__name__)
-LAN_DIR = 14
+LAN_DIR = 1
 
 logger.info('Creando nodo en dirección {}', LAN_DIR)
 node = containers.Node(LAN_DIR, serial_instance.SerialInterface())

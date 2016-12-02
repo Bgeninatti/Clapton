@@ -1,5 +1,6 @@
 import logging, math, argparse, re
 from ClaptonBase import serial_instance, containers
+from ClaptonBase.cfg import END_LINE
 
 parser = argparse.ArgumentParser(description='Maneja nodos y archivo HEX de salida')
 parser.add_argument('--node', type=int, dest="lan_dir", help="Dirección del nodo del que se quiere bajar el programa.")
@@ -29,9 +30,9 @@ if node.ser.im_master:
         for i in range(0, math.ceil((node.fnapp - node.initapp)/node.buffer)):
             longitud = node.buffer if inicio + node.buffer < node.fnapp else node.fnapp - inicio
             linea = node.read_app_line(inicio, longitud)
-            write_file.write(linea.to_write())
+            write_file.write('{0}\n'.format(linea.to_write()))
             inicio += node.buffer
-    logger.info('Se leyeron {} lineas de la aplicacion.'.format(len(lineas_aplicacion)))
+        write_file.write(END_LINE)
 else:
     logger.error('No puedo leer la aplicacion si no soy master')
 ser.stop()

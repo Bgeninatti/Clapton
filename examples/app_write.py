@@ -14,7 +14,7 @@ while not ser.im_master:
     time.sleep(0.1)
 node.identify()
 node.deactivate_app()
-with open(filename) as file_read:
+with open(args.file) as file_read:
     for l in file_read.readlines():
         line = containers.AppLine(line=l)
         if line.comando == '00':

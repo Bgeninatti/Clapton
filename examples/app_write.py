@@ -1,4 +1,4 @@
-import logging, argparse
+import logging, argparse, time
 from ClaptonBase import serial_instance, containers
 
 parser = argparse.ArgumentParser(description='Indica el archivo que se quiere grabar y en que nodo.')
@@ -10,6 +10,8 @@ logger = logging.getLogger(__name__)
 
 ser = serial_instance.SerialInterface()
 node = containers.Node(args.lan_dir, ser)
+while not ser.im_master:
+    time.sleep(0.1)
 node.identify()
 node.deactivate_app()
 with open(filename) as file_read:

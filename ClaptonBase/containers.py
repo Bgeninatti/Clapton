@@ -13,8 +13,8 @@ from .exceptions import ChecksumException, WriteException, ReadException, TokenE
 from .utils import get_logger
 
 
-APP_ACTIVATE_RESPONSE = '\x02'
-APP_DEACTIVATE_RESPONSE = '\x00'
+APP_ACTIVATE_RESPONSE = b'\x02'
+APP_DEACTIVATE_RESPONSE = b'\x00'
 
 
 class AppLine(object):

@@ -1,4 +1,4 @@
-import logging
+import logging, math
 from ClaptonBase import serial_instance, containers
 
 logger = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ if node.ser.im_master:
     lineas_aplicacion = list()
     inicio = node.initapp
     for i in range(0, math.ceil(node.fnapp/node.buffer)+1):
-        inicio += i
+        inicio += i*node.buffer
         longitud = node.buffer if inicio + node.buffer < node.fnapp else node.fnapp - inicio
         linea = node.read_app_line(inicio, longitud)
         lineas_aplicacion.append(linea)

@@ -543,6 +543,7 @@ class Node(object):
             self.status = status
         self._update_to_read_eeprom()
         self._update_to_read_ram()
+        self.check_app_state()
 
     def read_ram(self, inicio, longitud):
         return self._read_memo(inicio, longitud, instance='RAM')
@@ -565,8 +566,6 @@ class Node(object):
             WriteException: Si no se pudo escribir el paquete.
             ReadException: Si no se pudo leer la respuesta del nodoself.
         """
-        if not self.aplicacion_activa:
-            raise InactiveAppException
 
         self._logger.info("Ofreciendo token al nodo %s.", str(self.lan_dir))
         paq = Paquete(destino=self.lan_dir, funcion=7)
@@ -752,8 +751,6 @@ class Node(object):
           WriteException: Si no se pudo escribir el paquete.
           ReadException: Si no se pudo leer la respuesta del nodo.
         """
-        if not self.aplicacion_activa:
-            raise InactiveAppException
 
         if self.ser.im_master:
             self._logger.debug("Leyendo memoria del nodo %s.", str(self.lan_dir))
@@ -813,8 +810,6 @@ class Node(object):
           WriteException: Si no se pudo escribir el paquete.
           ReadException: Si no se pudo leer la respuesta del nodo.
         """
-        if not self.aplicacion_activa:
-            raise InactiveAppException
 
         self._logger.info("Escribiendo datos %s en nodo %s.", binascii.hexlify(datos), str(self.lan_dir))
         try:

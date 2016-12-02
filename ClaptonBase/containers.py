@@ -54,7 +54,7 @@ class AppLine(object):
     def to_write(self):
         longitud = binascii.hexlify(struct.pack('b', self.longitud)).decode()
         pre_inicio = binascii.hexlify(struct.pack('H', self.inicio*2)).decode()
-        inicio = inicio_pre[2:4].decode() + inicio_pre[0:2].decode()
+        inicio = pre_inicio[2:4].decode() + pre_inicio[0:2].decode()
         datos = binascii.hexlify(self.datos)
         cs = binascii.hexlify(self.cs).decode()
         return ':{0}{1}{2}{3}{4}'.format(longitud, inicio, comando, datos).upper()

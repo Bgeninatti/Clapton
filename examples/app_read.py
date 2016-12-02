@@ -14,11 +14,11 @@ if node.ser.im_master:
     lineas_aplicacion = list()
     inicio = node.initapp
     for i in range(0, math.ceil(node.fnapp/node.buffer)+1):
-        inicio += i*node.buffer
         longitud = node.buffer if inicio + node.buffer < node.fnapp else node.fnapp - inicio
         linea = node.read_app_line(inicio, longitud)
         lineas_aplicacion.append(linea)
         logger.info('{} {}', linea.inicio, linea.datos)
+        inicio += node.buffer
     logger.info('Se leyeron {} lineas de la aplicacion.'.format(len(lineas_aplicacion)))
 else:
     logger.error('No puedo leer la aplicacion si no soy master')

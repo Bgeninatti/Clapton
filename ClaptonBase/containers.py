@@ -480,9 +480,6 @@ class Node(object):
                 self._logger.error("Error de validacion de datos de identify en el nodo %s.", str(self.lan_dir))
                 raise TypeError
 
-        if not self.aplicacion_activa:
-            raise InactiveAppException
-
         self._logger.info("Identificando nodo %s.", str(self.lan_dir))
         status = self.status
         try:
@@ -592,7 +589,7 @@ class Node(object):
         """
 
         if not self.aplicacion_activa:
-            raise ActiveAppException #TODO:
+            raise InactiveAppException #TODO:
 
         if any([type(inicio) != int, type(longitud) != int]):
             self._logger.error("Error de validacion de datos de read_app_line en el nodo %s.", str(self.lan_dir))
@@ -684,12 +681,13 @@ class Node(object):
         if rta.datos != APP_ACTIVATE_RESPONSE:
             raise InactiveAppException
         else:
-            self.aplicacion_activa = True
+            self.check_app_state()
+            return self.aplicacion_activa
 
     def check_app_state(self):
-        paq_lab_gen = self.read_ram(0,1)[0]
-        self.aplicacion_activa = bool(paq_lab_gen.valor & 0b00000001)
-        self.solicitud_desactivacion = bool(paq_lab_gen.valor & 0b00000010)
+        lab_gen = self.read_ram(0,1)[0]
+        self.aplicacion_activa = bool(lab_gen.valor[0] & 0b00000001)
+        self.solicitud_desactivacion = bool(lab_gen.valor[0] & 0b00000010)
         return (self.solicitud_desactivacion, self.aplicacion_activa)
 
     def _update_to_read_eeprom(self):

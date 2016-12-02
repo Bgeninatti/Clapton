@@ -13,7 +13,7 @@ if node.ser.im_master:
     logger.info('Leyendo aplicación del nodo.')
     lineas_aplicacion = list()
     inicio = node.initapp
-    for i in range(0, math.ceil(node.fnapp/node.buffer)+1):
+    for i in range(0, math.ceil(node.fnapp/node.buffer)):
         longitud = node.buffer if inicio + node.buffer < node.fnapp else node.fnapp - inicio
         linea = node.read_app_line(inicio, longitud)
         lineas_aplicacion.append(linea)

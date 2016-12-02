@@ -8,6 +8,7 @@ logger.info('Creando nodo en dirección {}', LAN_DIR)
 node = containers.Node(LAN_DIR, serial_instance.SerialInterface())
 logger.info('Checkeando estado del master')
 node.ser.check_master()
+node.identify()
 if node.ser.im_master:
     logger.info('Leyendo aplicación del nodo.')
     lineas_aplicacion = list()

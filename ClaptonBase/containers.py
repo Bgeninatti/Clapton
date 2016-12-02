@@ -55,8 +55,9 @@ class AppLine(object):
         longitud = binascii.hexlify(struct.pack('b', self.longitud)).decode()
         pre_inicio = binascii.hexlify(struct.pack('H', self.inicio*2))
         inicio = pre_inicio[2:4].decode() + pre_inicio[0:2].decode()
-        datos = binascii.hexlify(self.datos)
-        cs = binascii.hexlify(self.cs).decode()
+        datos = binascii.hexlify(self.datos).decode()
+        cs = encode.checksum(binascii.unhexlify('{0}{1}{2}{3}'.format(longitud, inicio, self.comando, datos))).decode()
+
         return ':{0}{1}{2}{3}{4}'.format(longitud, inicio, comando, datos).upper()
 
 class Paquete(object):

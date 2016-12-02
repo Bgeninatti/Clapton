@@ -1,9 +1,9 @@
-import logging, math, argparse
+import logging, math, argparse, re
 from ClaptonBase import serial_instance, containers
 
 parser = argparse.ArgumentParser(description='Maneja nodos y archivo HEX de salida')
-parser.add_argument(['--node', '-n'], type=int, nargs=1, dest="lan_dir", help="Dirección del nodo del que se quiere bajar el programa.")
-parser.add_argument(['--file', '-f'], type=str, nargs=1, dest="file_name", help="Nombre del archivo HEX de destino.")
+parser.add_argument('--node', type=int, dest="lan_dir", help="Dirección del nodo del que se quiere bajar el programa.")
+parser.add_argument('--file', type=str, dest="file_name", help="Nombre del archivo HEX de destino.")
 
 
 
@@ -18,7 +18,7 @@ else:
 logger.info('Creando nodo en dirección {}', args.lan_dir)
 
 ser = serial_instance.SerialInterface()
-node = containers.Node(LAN_DIR, ser)
+node = containers.Node(args.lan_dir, ser)
 logger.info('Checkeando estado del master')
 node.ser.check_master()
 node.identify()

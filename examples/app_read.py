@@ -3,8 +3,8 @@ from ClaptonBase import serial_instance, containers
 from ClaptonBase.cfg import END_LINE
 
 parser = argparse.ArgumentParser(description='Maneja nodos y archivo HEX de salida')
-parser.add_argument('--node', type=int, nargs=1, dest="lan_dir", help="Dirección del nodo del que se quiere bajar el programa.")
-parser.add_argument('--file', type=str, nargs=2, dest="file_name", help="Nombre del archivo HEX de destino.")
+parser.add_argument('node', type=int, nargs=1, dest="lan_dir", help="Dirección del nodo del que se quiere bajar el programa.")
+parser.add_argument('file', type=str, nargs=2, dest="file_name", help="Nombre del archivo HEX de destino.")
 
 
 

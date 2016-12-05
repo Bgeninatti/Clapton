@@ -5,8 +5,8 @@ from ClaptonBase import serial_instance, containers
 
 
 parser = argparse.ArgumentParser(description='Indica el archivo que se quiere grabar y en que nodo.')
-parser.add_argument('--node', type=int, nargs=1, dest="lan_dir", help="Dirección del nodo que se quiere grabar.")
-parser.add_argument('--file', type=str, nargs=2, dest="file", help="Nombre del archivo HEX que tiene el programa.")
+parser.add_argument('node', type=int, nargs=1, dest="lan_dir", help="Dirección del nodo que se quiere grabar.")
+parser.add_argument('file', type=str, nargs=2, dest="file", help="Nombre del archivo HEX que tiene el programa.")
 
 args = parser.parse_args()
 logger = logging.getLogger(__name__)

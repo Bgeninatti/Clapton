@@ -9,4 +9,5 @@ setup(
     packages=['ClaptonBase',],
     test_suite='tests',
     install_requires=['pyserial', 'pyzmq'],
+    scripts=["bin/grabar_programa", "bin/leer_programa"],
 )

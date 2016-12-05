@@ -27,8 +27,8 @@ node.identify()
 if node.ser.im_master:
     logger.info('Leyendo aplicación del nodo.')
     with open(file_dir, 'w') as write_file:
-        inicio = node.initapp
-        for i in range(0, math.ceil((node.fnapp - node.initapp)/node.buffer)):
+        inicio = 0
+        for i in range(0, math.ceil(node.fnapp/node.buffer)):
             longitud = node.buffer if inicio + node.buffer < node.fnapp else node.fnapp - inicio
             linea = node.read_app_line(inicio, longitud)
             write_file.write('{0}\n'.format(linea.to_write()))

@@ -185,7 +185,7 @@ class MemoInstance(object):
         self.valor = valor
         self._representation = None
 
-    @property.representation
+    @property
     def representation(self):
         if self.valor is None:
             return

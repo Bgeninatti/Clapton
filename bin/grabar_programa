@@ -15,9 +15,12 @@ file_dir = os.path.realpath(args.file)
 ser = serial_instance.SerialInterface()
 node = containers.Node(args.lan_dir, ser)
 while not ser.im_master:
-    time.sleep(0.1)
+    ser.check_master()
+    time.sleep(1)
 node.identify()
-node.deactivate_app()
+solicitud, aplicacion_activa = node.check_app_state()
+if aplicacion_activa:
+    node.deactivate_app()
 with open(file_dir) as file_read:
     for l in file_read.readlines():
         line = containers.AppLine(line=l)

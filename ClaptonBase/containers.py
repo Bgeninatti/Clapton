@@ -60,6 +60,7 @@ class AppLine(object):
         cs = binascii.hexlify(encode.checksum(binascii.unhexlify(pre_line))).decode()
         return ':{0}{1}'.format(pre_line, cs).upper()
 
+
 class Paquete(object):
 
     def __init__(self,
@@ -175,14 +176,22 @@ class Paquete(object):
 class MemoInstance(object):
 
     def __init__(self, nodo, tipo, indice, timestamp=None, valor=None):
-        # contenedor dummy de atributos. Los datos no son requeridos para podera armar la memoria de a dos paquetes
-        # cuando no soy master.
+        # contenedor dummy de atributos. Los datos no son requeridos para
+        # podera armar la memoria de a dos paquetes cuando no soy master.
         self.timestamp = timestamp
         self.nodo = nodo
         self.tipo = tipo
         self.indice = indice
         self.valor = valor
-        self.representation = self._make_representation()
+        self._representation = None
+
+    @property.representation
+    def representation(self):
+        if self.valor is None:
+            return
+        else:
+            self._representation = self._make_representation
+        return self._representation
 
     def _make_representation(self):
         parsed_data = binascii.hexlify(self.valor)

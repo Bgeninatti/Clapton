@@ -190,7 +190,7 @@ class MemoInstance(object):
         if self.valor is None:
             return
         else:
-            self._representation = self._make_representation
+            self._representation = self._make_representation()
         return self._representation
 
     def _make_representation(self):

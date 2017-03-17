@@ -247,9 +247,9 @@ class Node(object):
         self._can_update.set()
 
         # Banderas de lectura del nodo.
-        self._enabled_read_node = DEFAULT_READ_NODE
-        self._enabled_read_ram = DEFAULT_READ_RAM
-        self._enabled_read_eeprom = DEFAULT_READ_EEPROM
+        self._enabled_read_node = False
+        self._enabled_read_ram = False
+        self._enabled_read_eeprom = False
         self.index_disabled_ram = list()
         self.index_disabled_eeprom = list()
         self.to_read_ram = list()

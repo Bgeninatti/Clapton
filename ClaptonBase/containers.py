@@ -498,13 +498,13 @@ class Node(object):
                 self.initapp = struct.unpack('b', rta.datos[1:2])[0] * 256 \
                     if len(rta.datos[1:2]) else None
                 self.eeprom_size = struct.unpack('b', rta.datos[2:3])[0] * 64 \
-                    if len(rta.datos[2:3]) else None
+                    if len(rta.datos[2:3]) else DEFAULT_EEPROM
                 self.buffer = struct.unpack('b', rta.datos[5:6])[0] \
-                    if len(rta.datos[5:6]) else None
+                    if len(rta.datos[5:6]) else DEFAULT_BUFFER
                 self.ram_write = struct.unpack('b', rta.datos[6:7])[0] \
-                    if len(rta.datos[6:7]) else None
+                    if len(rta.datos[6:7]) else DEFAULT_RAM_WRITE
                 self.ram_read = struct.unpack('b', rta.datos[7:8])[0] \
-                    if len(rta.datos[7:8]) else None
+                    if len(rta.datos[7:8]) else DEFAULT_RAM_READ
                 self.ini_config = struct.unpack('b', rta.datos[8:9])[0] \
                     if len(rta.datos[8:9]) else None
                 self.ini_eeprom = struct.unpack('b', rta.datos[9:10])[0] \

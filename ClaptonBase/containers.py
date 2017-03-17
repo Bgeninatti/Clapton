@@ -212,9 +212,9 @@ class Node(object):
                  lan_dir,
                  ser,
                  is_master=False,
-                 required=False,
-                 required_ram=False,
-                 required_eeprom=False,
+                 required=DEFAULT_REQUIRED_NODE,
+                 required_ram=DEFAULT_REQUIRED_RAM,
+                 required_eeprom=DEFAULT_REQUIRED_EEPROM,
                  required_ram_index=list(),
                  required_eeprom_index=list(),
                  log_level=None,
@@ -247,9 +247,9 @@ class Node(object):
         self._can_update.set()
 
         # Banderas de lectura del nodo.
-        self._enabled_read_node = False
-        self._enabled_read_ram = False
-        self._enabled_read_eeprom = False
+        self._enabled_read_node = DEFAULT_REQUIRED_NODE
+        self._enabled_read_ram = DEFAULT_REQUIRED_RAM
+        self._enabled_read_eeprom = DEFAULT_REQUIRED_EEPROM
         self.index_disabled_ram = list()
         self.index_disabled_eeprom = list()
         self.to_read_ram = list()
@@ -278,7 +278,6 @@ class Node(object):
 
         # En donde se almacenaran los servicios leidos del pic
         self.servicios = {}
-
 
     @property
     def status(self):

@@ -702,6 +702,14 @@ class Node(object):
         self.solicitud_desactivacion = bool(lab_gen.valor[0] & 0b01000010)
         return (self.solicitud_desactivacion, self.aplicacion_activa)
 
+    def _send_sate(self):
+        msg = '{1}_{3}{0}{2}'.format(
+                COMMAND_SEPARATOR,
+                MSG_NODE_PREFIX,
+                self.__str__(),
+                self.lan_dir)
+        self.ser.connection_socket.send_string(msg)
+
     def _update_to_read_eeprom(self):
         self._can_update.wait()
         if self._can_update.isSet():
@@ -850,5 +858,6 @@ class Node(object):
             'enabled_read_node': self.enabled_read_node,
             'enabled_read_ram':  self.enabled_read_ram,
             'enabled_read_eeprom': self.enabled_read_eeprom,
-            'servicios': self.servicios
+            'servicios': self.servicios,
+            'time': time.time(),
         })

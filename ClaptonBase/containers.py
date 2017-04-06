@@ -7,14 +7,12 @@ import sys
 from threading import Event, Lock
 
 from .cfg import *
+from .consts import *
 from . import encode, decode
-from .exceptions import ChecksumException, WriteException, ReadException, TokenExeption, NodeNotExists, \
-    InactiveAppException, ActiveAppException, PaqException, BadLineException, DecodeError
+from .exceptions import ChecksumException, WriteException, ReadException, \
+    TokenExeption, NodeNotExists, InactiveAppException, ActiveAppException, \
+    PaqException, BadLineException, DecodeError
 from .utils import get_logger
-
-
-APP_ACTIVATE_RESPONSE = b'\x02'
-APP_DEACTIVATE_RESPONSE = b'\x00'
 
 
 class AppLine(object):
@@ -31,8 +29,11 @@ class AppLine(object):
                 raise BadLineException
             if decode.validate_cs(binascii.unhexlify(''.join(line_parsed))):
                 try:
-                    self.longitud = struct.unpack('b', binascii.unhexlify(line_parsed[0]))[0]
-                    self.inicio = int(struct.unpack('H', binascii.unhexlify(line_parsed[2] + line_parsed[1]))[0]/2)
+                    self.longitud = struct.unpack(
+                        'b', binascii.unhexlify(line_parsed[0]))[0]
+                    self.inicio = int(struct.unpack(
+                        'H', binascii.unhexlify(
+                            line_parsed[2] + line_parsed[1]))[0]/2)
                     self.comando = line_parsed[3]
                     datos = binascii.unhexlify(line_parsed[4])
                     self.datos = datos[:-1]
@@ -49,7 +50,8 @@ class AppLine(object):
 
     def get_1b_data(self):
         dir_inicio = struct.pack('H', self.inicio)
-        return dir_inicio + ''.join([self.datos[i] for i in range(len(self.datos)) if i % 2])
+        return dir_inicio + ''.join(
+            [self.datos[i] for i in range(len(self.datos)) if i % 2])
 
     def to_write(self):
         longitud = binascii.hexlify(struct.pack('b', self.longitud)).decode()
@@ -57,7 +59,8 @@ class AppLine(object):
         inicio = pre_inicio[2:4].decode() + pre_inicio[0:2].decode()
         datos = binascii.hexlify(self.datos).decode()
         pre_line = '{0}{1}{2}{3}'.format(longitud, inicio, self.comando, datos)
-        cs = binascii.hexlify(encode.checksum(binascii.unhexlify(pre_line))).decode()
+        cs = binascii.hexlify(encode.checksum(
+            binascii.unhexlify(pre_line))).decode()
         return ':{0}{1}'.format(pre_line, cs).upper()
 
 
@@ -69,10 +72,11 @@ class Paquete(object):
                  destino=None,
                  funcion=None,
                  datos=None):
-        # Se puede enviar un paquete como cadena de bytes para decodificarlo o indicar los parametros para codificar el
-        # paquete como cadena de bytes. Esto permite usar la misma instancia para interpretar las lecturas como codificar
-        # las escrituras.
-
+        # Se puede enviar un paquete como cadena de bytes para decodificarlo o
+        # indicar los parametros para codificar el paquete como cadena de
+        # bytes. Esto permite usar la misma instancia para interpretar las
+        # lecturas como codificar las escrituras.
+        #
         # Paquete como cadena de bytes
         """
         raise:
@@ -130,25 +134,38 @@ class Paquete(object):
             raise PaqException('No se reconoce la funcion')
         elif self.funcion == 0 and len(self.datos):
             # La funcion 0 siempre tiene que tener longitud de datos 0
-            raise PaqException('La funcion 0 siempre tiene que tener longitud de datos 0.')
+            raise PaqException(
+                'La funcion 0 siempre tiene que tener longitud de datos 0.')
         elif self.funcion in READ_FUNCTIONS and len(self.datos) != 2:
-            # Las funciones en READ_FUNCTIONS siempre tienen que tener longitud de datos 2
-            raise PaqException('Las funciones de lectura de memoria siempre tienen que tener longitud de datos 2.')
+            # Las funciones en READ_FUNCTIONS siempre tienen que tener longitud
+            # de datos 2
+            raise PaqException(
+                'Las funciones de lectura de memoria siempre tienen que tener'
+                ' longitud de datos 2.')
         elif self.funcion in WRITE_FUNCTIONS and len(self.datos) <= 1:
-            # Las funciones en WRITE_FUNCTIONS siempre tienen que tener longitud de datos mayor a 1.
-            raise PaqException('Las funciones de escritura de memoria siempre tienen que tener longitud de datos mayor a 1.')
+            # Las funciones en WRITE_FUNCTIONS siempre tienen que tener
+            # longitud de datos mayor a 1.
+            raise PaqException(
+                'Las funciones de escritura de memoria siempre tienen que '
+                'tener longitud de datos mayor a 1.')
         elif self.funcion == 5 and len(self.datos) != 3:
-            # El paquete de funcion 5 tiene que tener longitud 3 siempre. Dos bytes indicando el inicio (una palabra)
-            # y un byte indicando la longitud.
-            raise PaqException('La funcion de lectura de aplicacion siempre tiene que tener longitud de datos 3.')
+            # El paquete de funcion 5 tiene que tener longitud 3 siempre. Dos
+            # bytes indicando el inicio (una palabra) y un byte indicando la
+            # longitud.
+            raise PaqException(
+                'La funcion de lectura de aplicacion siempre tiene que tener '
+                'longitud de datos 3.')
         elif self.funcion == 6 and len(self.datos) < 2:
-            raise PaqException('Las funciones de escritura de aplicacion siempre tienen que tener longitud de datos mayor a 1.')
+            raise PaqException(
+                'Las funciones de escritura de aplicacion siempre tienen que '
+                'tener longitud de datos mayor a 1.')
 
     def _get_rta_size(self):
         """
         Calcula tamanio de la respuesta segun la funcion del paquete
-        Llegada a esta instancia la funcion ya fue validad y se asegura que esta
-        no es mayor a 8, sin embargo excepcion de PaqException se establece igual
+        Llegada a esta instancia la funcion ya fue validad y se asegura que
+        esta no es mayor a 8, sin embargo excepcion de PaqException se
+        establece igual
         """
         if self.funcion == 0:
             return 13
@@ -166,7 +183,8 @@ class Paquete(object):
             if self.datos == b'\x00\x00\xa5\x05':
                 return 4
             else:
-                return APP_LINE_SIZE + 2 + 3  # el dos es por la direccion y el 3 por el resto del paquete.
+                # el dos es por la direccion y el 3 por el resto del paquete.
+                return APP_LINE_SIZE + 2 + 3
         elif self.funcion == 7:
             return 3
         else:
@@ -219,9 +237,12 @@ class Node(object):
                  required_eeprom_index=list(),
                  log_level=None,
                  log_file=None):
-        self._logger = get_logger(__name__, log_level, log_file)  # Inicio logger
-        self.ser = ser  # Guardo la instancia del puerto serie.
-        self.lan_dir = int(lan_dir)  # Guardo direccion. Tiene que ser un int. Si no lo tiro.
+        # Inicio logger
+        self._logger = get_logger(__name__, log_level, log_file)
+        # Guardo la instancia del puerto serie.
+        self.ser = ser
+        # Guardo direccion. Tiene que ser un int. Si no lo tiro.
+        self.lan_dir = int(lan_dir)
         self._logger.info("Iniciando nodo %s.", str(self.lan_dir))
         self.identified = False
         # Si nunca lo vi el timestamp no existe.
@@ -242,7 +263,8 @@ class Node(object):
         self.ram = {}
         self.ram_lock = Lock()
 
-        # Bandera de uso interno para que no haya colicion en la actualizacion de los datos del master.
+        # Bandera de uso interno para que no haya colicion en la actualizacion
+        # de los datos del master.
         self._can_update = Event()
         self._can_update.set()
 
@@ -255,7 +277,8 @@ class Node(object):
         self.to_read_ram = list()
         self.to_read_eeprom = list()
 
-        # Inicio con sizes estandar para poder usar hasta que el nodo sea identificado.
+        # Inicio con sizes estandar para poder usar hasta que el nodo sea
+        # identificado.
         self.buffer = DEFAULT_BUFFER
         self.eeprom_size = DEFAULT_EEPROM
         self.initapp = None
@@ -263,16 +286,20 @@ class Node(object):
         self.ram_read = DEFAULT_RAM_READ
         self.ram_write = DEFAULT_RAM_WRITE
 
-        # Estos son los parametros requeridos de lectura para que la aplicacion funcione. Se dara warning cuando se quiera desactivarlos.
+        # Estos son los parametros requeridos de lectura para que la aplicacion
+        # funcione. Se dara warning cuando se quiera desactivarlos.
         self.required = required
         self.required_ram = required_ram
         self.required_eeprom = required_eeprom
         self.required_ram_index = required_ram_index
         self.required_eeprom_index = required_eeprom_index
 
-        self.enabled_read_ram = required_ram or len(required_ram_index) > 0
-        self.enabled_read_eeprom = required_eeprom or len(required_eeprom_index) > 0
-        self.enabled_read_node = required or self.enabled_read_ram or self.enabled_read_eeprom
+        self.enabled_read_ram = required_ram or \
+            len(required_ram_index) > 0
+        self.enabled_read_eeprom = required_eeprom or \
+            len(required_eeprom_index) > 0
+        self.enabled_read_node = required or self.enabled_read_ram or \
+            self.enabled_read_eeprom
         self.enable_eeprom_sector(*required_eeprom_index)
         self.enable_ram_sector(*required_ram_index)
 
@@ -291,13 +318,16 @@ class Node(object):
           TypeError: si el estado no es int
         """
         if type(value) is not int:
-            self._logger.error("Parametro invalido para atributo status del nodo %s.", str(self.lan_dir))
+            self._logger.error(
+                "Parametro invalido para atributo status del nodo %s.",
+                str(self.lan_dir))
             raise TypeError
         self._can_update.wait()
         if self._can_update.isSet():
             # Actualizo el estado y renuevo timestamp si el estado es 1.
             self._can_update.clear()
-            self._logger.debug("Reportando estado del nodo %s.", str(self.lan_dir))
+            self._logger.debug(
+                "Reportando estado del nodo %s.", str(self.lan_dir))
             self._status = value
             self._send_sate()
             if value == 1:
@@ -316,13 +346,19 @@ class Node(object):
           TypeError: si el valor no es bool
         """
         if type(value) is not bool:
-            self._logger.error("Parametro invalido para atributo enable_read_node del nodo %s.", str(self.lan_dir))
+            self._logger.error(
+                "Parametro invalido para enable_read_node del nodo %s",
+                str(self.lan_dir))
             raise TypeError
 
         if self.required and not value:
-            self._logger.warning("El nodo %d es requerido y se esta desactivando su lectura" % (self.lan_dir,))
+            self._logger.warning(
+                "El nodo %d es requerido y se esta desactivando su lectura",
+                self.lan_dir)
 
-        self._logger.info("%sctivando lectura del nodo %s.", ('A' if value else 'Desa'), str(self.lan_dir))
+        self._logger.info(
+            "%sctivando lectura del nodo %s.", ('A' if value else 'Desa'),
+            str(self.lan_dir))
 
         self._can_update.wait()
         if self._can_update.isSet():
@@ -342,13 +378,19 @@ class Node(object):
           TypeError: si el valor no es bool
         """
         if type(value) is not bool:
-            self._logger.error("Parametro invalido para atributo enable_read_ram del nodo %s.", str(self.lan_dir))
+            self._logger.error(
+                "Parametro invalido para enable_read_ram del nodo %s.",
+                str(self.lan_dir))
             raise TypeError
 
         if self.required_ram and not value:
-            self._logger.warning("La memoria ram del nodo %d es requerida y se esta desactivando su lectura" % (self.lan_dir,))
+            self._logger.warning(
+                "La memoria ram del nodo %d es requerida y se esta " +
+                "desactivando su lectura" % (self.lan_dir,))
 
-        self._logger.info("%sctivando lectura de ram del nodo %s.",('A' if value else 'Desa'), str(self.lan_dir))
+        self._logger.info(
+            "%sctivando lectura de ram del nodo %s.",
+            ('A' if value else 'Desa'), str(self.lan_dir))
 
         self._can_update.wait()
         if self._can_update.isSet():
@@ -368,13 +410,19 @@ class Node(object):
           TypeError: si el valor no es bool
         """
         if type(value) is not bool:
-            self._logger.error("Parametro invalido para atributo enable_read_eeprom del nodo %s.", str(self.lan_dir))
+            self._logger.error(
+                "Parametro invalido para atributo enable_read_eeprom del " +
+                "nodo %s.", str(self.lan_dir))
             raise TypeError
 
         if self.required_eeprom and not value:
-            self._logger.warning("La eeprom del nodo %d es requerida y se esta desactivando su lectura" % (self.lan_dir,))
+            self._logger.warning(
+                "La eeprom del nodo %d es requerida y se esta desactivando "
+                "su lectura" % (self.lan_dir,))
 
-        self._logger.info("%sctivando lectura de eeprom del nodo %s.",('A' if value else 'Desa'), str(self.lan_dir))
+        self._logger.info(
+            "%sctivando lectura de eeprom del nodo %s.",
+            ('A' if value else 'Desa'), str(self.lan_dir))
 
         self._can_update.wait()
         if self._can_update.isSet():
@@ -389,12 +437,17 @@ class Node(object):
           TypeError: si el valor no es int
         """
         if any([type(a) != int for a in args]):
-            self._logger.error("Los valores para disable_eeprom_sector deben ser todos int.")
+            self._logger.error(
+                "Los valores para disable_eeprom_sector deben ser todos int.")
             raise TypeError
 
         if any([a in self.required_eeprom_index for a in args]):
-            self._logger.warning("Desactivando indices de eeprom del nodo %d indicados como requeridos" % (self.lan_dir,))
-        self._logger.info("Desactivando sectores de eeprom %s del nodo %s.", str(args), str(self.lan_dir))
+            self._logger.warning(
+                "Desactivando indices de eeprom del nodo %d indicados como " +
+                "requeridos" % (self.lan_dir,))
+        self._logger.info(
+            "Desactivando sectores de eeprom %s del nodo %s.",
+            str(args), str(self.lan_dir))
         self._can_update.wait()
         if self._can_update.isSet():
             self._can_update.clear()
@@ -412,10 +465,13 @@ class Node(object):
           TypeError: si el valor no es int
         """
         if any([type(a) != int for a in args]):
-            self._logger.error("Los valores para enable_eeprom_sector deben ser todos int.")
+            self._logger.error(
+                "Los valores para enable_eeprom_sector deben ser todos int.")
             raise TypeError
 
-        self._logger.info("Activando sectores de eeprom %s del nodo %s.", str(args), str(self.lan_dir))
+        self._logger.info(
+            "Activando sectores de eeprom %s del nodo %s.",
+            str(args), str(self.lan_dir))
         self._can_update.wait()
         if self._can_update.isSet():
             self._can_update.clear()
@@ -433,12 +489,17 @@ class Node(object):
           TypeError: si el valor no es int
         """
         if any([type(a) != int for a in args]):
-            self._logger.error("Los valores para disable_ram_sector deben ser todos int.")
+            self._logger.error(
+                "Los valores para disable_ram_sector deben ser todos int.")
             raise TypeError
 
         if any([a in self.required_ram_index for a in args]):
-            self._logger.warning("Desactivando indices de ram del nodo %d indicados como requeridos" % (self.lan_dir,))
-        self._logger.info("Desactivando sectores de ram %s del nodo %s.", str(args), str(self.lan_dir))
+            self._logger.warning(
+                "Desactivando indices de ram del nodo %d indicados como " +
+                "requeridos", (self.lan_dir,))
+        self._logger.info(
+            "Desactivando sectores de ram %s del nodo %s.",
+            str(args), str(self.lan_dir))
         self._can_update.wait()
         if self._can_update.isSet():
             self._can_update.clear()
@@ -456,10 +517,13 @@ class Node(object):
           TypeError: si el valor no es int
         """
         if any([type(a) != int for a in args]):
-            self._logger.error("Los valores para enable_ram_sector deben ser todos int.")
+            self._logger.error(
+                "Los valores para enable_ram_sector deben ser todos int.")
             raise TypeError
 
-        self._logger.info("Activando sectores de ram %s del nodo %s.", str(args), str(self.lan_dir))
+        self._logger.info(
+            "Activando sectores de ram %s del nodo %s.",
+            str(args), str(self.lan_dir))
         self._can_update.wait()
         if self._can_update.isSet():
             self._can_update.clear()
@@ -474,13 +538,16 @@ class Node(object):
         """
         :param rta: Una instancia de Paquete con la respuesta de la funcion 0
         :return: None
-          TypeError: Si rta no es None y no es una instancia de paquete o no es un paquete con funcion 0
+          TypeError: Si rta no es None y no es una instancia de paquete o no es
+          un paquete con funcion 0
           InactiveAppException: Si la aplicacion esta inactiva
           NodeNotExists: Si no se recibio respuesta del nodo
         """
         if rta is not None:
             if not isinstance(rta, Paquete) or rta.funcion != 0:
-                self._logger.error("Error de validacion de datos de identify en el nodo %s.", str(self.lan_dir))
+                self._logger.error(
+                    "Error de validacion de datos de identify en el nodo %s.",
+                    str(self.lan_dir))
                 raise TypeError
 
         self._logger.info("Identificando nodo %s.", str(self.lan_dir))
@@ -492,7 +559,8 @@ class Node(object):
             self._can_update.wait()
             if self._can_update.isSet():
                 self._can_update.clear()
-                self.fnapp = struct.unpack('b', rta.datos[0:1])[0] * 256 + 255 \
+                self.fnapp = struct.unpack(
+                    'b', rta.datos[0:1])[0] * 256 + 255 \
                     if len(rta.datos[0:1]) else None
                 self.initapp = struct.unpack('b', rta.datos[1:2])[0] * 256 \
                     if len(rta.datos[1:2]) else None
@@ -510,30 +578,64 @@ class Node(object):
                     if len(rta.datos[9:10]) else None
                 if len(rta.datos[3:4]):
                     servicio0 = struct.unpack('b', rta.datos[3:4])[0]
-                    self.servicios['0b7'] = {'estado': servicio0 & 0b10000000, 'desc': 'Puede ser maestro.'}
-                    self.servicios['0b6'] = {'estado': servicio0 & 0b01000000, 'desc': 'Tiene entradas analogicas de alta resolucion.'}
-                    self.servicios['0b5'] = {'estado': servicio0 & 0b00100000, 'desc': 'Tiene entradas digitales o analogicas de baja resolucion.'}
-                    self.servicios['0b4'] = {'estado': servicio0 & 0b00010000, 'desc': 'Tiene salidas analogicas o tipo PWM.'}
-                    self.servicios['0b3'] = {'estado': servicio0 & 0b00001000, 'desc': 'Tiene salidas a rele o digitales a transistor.'}
-                    self.servicios['0b2'] = {'estado': servicio0 & 0b00000100, 'desc': 'Tiene entradas de cuenta de alta velocidad.'}
-                    self.servicios['0b1'] = {'estado': servicio0 & 0b00000010, 'desc': 'Tiene display y/o pulsadores.'}
-                    self.servicios['0b0'] = {'estado': servicio0 & 0b00000001, 'desc': 'Tiene EEPROM.'}
+                    self.servicios['0b7'] = {
+                        'estado': servicio0 & 0b10000000,
+                        'desc': 'Puede ser maestro.'}
+                    self.servicios['0b6'] = {
+                        'estado': servicio0 & 0b01000000,
+                        'desc': 'Tiene entradas analogicas de alta resolucion.'}
+                    self.servicios['0b5'] = {
+                        'estado': servicio0 & 0b00100000,
+                        'desc': 'Tiene entradas digitales o analogicas de baja resolucion.'}
+                    self.servicios['0b4'] = {
+                        'estado': servicio0 & 0b00010000,
+                        'desc': 'Tiene salidas analogicas o tipo PWM.'}
+                    self.servicios['0b3'] = {
+                        'estado': servicio0 & 0b00001000,
+                        'desc': 'Tiene salidas a rele o digitales a transistor.'}
+                    self.servicios['0b2'] = {
+                        'estado': servicio0 & 0b00000100,
+                        'desc': 'Tiene entradas de cuenta de alta velocidad.'}
+                    self.servicios['0b1'] = {
+                        'estado': servicio0 & 0b00000010,
+                        'desc': 'Tiene display y/o pulsadores.'}
+                    self.servicios['0b0'] = {
+                        'estado': servicio0 & 0b00000001,
+                        'desc': 'Tiene EEPROM.'}
                 if len(rta.datos[4:5]):
                     servicio1 = struct.unpack('b', rta.datos[4:5])[0]
                     self.puede_master = servicio1 & 0b10000000
                     self.tiene_eeprom = servicio1 & 0b00000001
-                    self.servicios['1b7'] = {'estado': servicio1 & 0b10000000, 'desc': 'No implementado.'}
-                    self.servicios['1b6'] = {'estado': servicio1 & 0b01000000, 'desc': 'No implementado.'}
-                    self.servicios['1b5'] = {'estado': servicio1 & 0b00100000, 'desc': 'No implementado.'}
-                    self.servicios['1b4'] = {'estado': servicio1 & 0b00010000, 'desc': 'No implementado.'}
-                    self.servicios['1b3'] = {'estado': servicio1 & 0b00001000, 'desc': 'No implementado.'}
-                    self.servicios['1b2'] = {'estado': servicio1 & 0b00000100, 'desc': 'No implementado.'}
-                    self.servicios['1b1'] = {'estado': servicio1 & 0b00000010, 'desc': 'No implementado.'}
-                    self.servicios['1b0'] = {'estado': servicio1 & 0b00000001, 'desc': 'No implementado.'}
+                    self.servicios['1b7'] = {
+                        'estado': servicio1 & 0b10000000,
+                        'desc': 'No implementado.'}
+                    self.servicios['1b6'] = {
+                        'estado': servicio1 & 0b01000000,
+                        'desc': 'No implementado.'}
+                    self.servicios['1b5'] = {
+                        'estado': servicio1 & 0b00100000,
+                        'desc': 'No implementado.'}
+                    self.servicios['1b4'] = {
+                        'estado': servicio1 & 0b00010000,
+                        'desc': 'No implementado.'}
+                    self.servicios['1b3'] = {
+                        'estado': servicio1 & 0b00001000,
+                        'desc': 'No implementado.'}
+                    self.servicios['1b2'] = {
+                        'estado': servicio1 & 0b00000100,
+                        'desc': 'No implementado.'}
+                    self.servicios['1b1'] = {
+                        'estado': servicio1 & 0b00000010,
+                        'desc': 'No implementado.'}
+                    self.servicios['1b0'] = {
+                        'estado': servicio1 & 0b00000001,
+                        'desc': 'No implementado.'}
                 self.identified = True
                 status = 1
         except IndexError:
-            self._logger.warning("Nodo %s posiblemente con una version vieja de software.", str(self.lan_dir))
+            self._logger.warning(
+                "Nodo %s posiblemente con una version vieja de software.",
+                str(self.lan_dir))
             self.identified = True
             status = 1
         except (WriteException, ReadException) as e:
@@ -580,7 +682,8 @@ class Node(object):
 
     def read_app_line(self, inicio, longitud):
         """
-        :param inicio: int Indice indicando a partir de que registro de la memoria de la aplicacion se quiere leer.
+        :param inicio: int Indice indicando a partir de que registro de la
+        memoria de la aplicacion se quiere leer.
         :param longitud: int que indica la longitud en bytes que se quiere leer
         :return: Line instance
         :raise:
@@ -594,7 +697,9 @@ class Node(object):
             raise InactiveAppException #TODO:
 
         if any([type(inicio) != int, type(longitud) != int]):
-            self._logger.error("Error de validacion de datos de read_app_line en el nodo %s.", str(self.lan_dir))
+            self._logger.error(
+                "Error de validacion de datos de read_app_line en el nodo %s.",
+                str(self.lan_dir))
             raise TypeError
 
         paq = Paquete(
@@ -602,7 +707,9 @@ class Node(object):
             funcion=5,
             datos=struct.pack('Hb', inicio, longitud)
         )
-        self._logger.info("Leyendo linea del nodo %s, inicio %d, longitud %d.", str(self.lan_dir), inicio, longitud)
+        self._logger.info(
+            "Leyendo linea del nodo %s, inicio %d, longitud %d.",
+            str(self.lan_dir), inicio, longitud)
         rta, _ = self.ser.send_paq(paq)
         line = AppLine(inicio=inicio*2, paq=rta)
         return line
@@ -619,8 +726,10 @@ class Node(object):
         if not self.aplicacion_activa:
             raise InactiveAppException
 
-        self._logger.info("Desactivando aplicacion del nodo %s.", str(self.lan_dir))
-        paq = Paquete(destino=self.lan_dir, funcion=6, datos=b'\x00\x01\xff\xff')
+        self._logger.info(
+            "Desactivando aplicacion del nodo %s.", str(self.lan_dir))
+        paq = Paquete(
+            destino=self.lan_dir, funcion=6, datos=b'\x00\x01\xff\xff')
         rta, _ = self.ser.send_paq(paq)
         if rta.datos != APP_DEACTIVATE_RESPONSE:
             raise ActiveAppException
@@ -671,14 +780,17 @@ class Node(object):
         :return: None
         :raise:
           ActiveAppException: Si la aplicacion ya esta activa
-          InactiveAppException: Si hubo un error intentando activar la aplicacion
+          InactiveAppException: Si hubo un error intentando activar la
+          aplicacion
           WriteException: Si no se pudo escribir el paquete.
           ReadException: Si no se pudo leer la respuesta del nodo.
         """
         if self.aplicacion_activa:
             raise ActiveAppException
-        self._logger.info("Reactivando aplicacion del nodo %s.", str(self.lan_dir))
-        paq = Paquete(destino=self.lan_dir, funcion=6, datos=b'\x00\x00\xa5\x05')
+        self._logger.info(
+            "Reactivando aplicacion del nodo %s.", str(self.lan_dir))
+        paq = Paquete(
+            destino=self.lan_dir, funcion=6, datos=b'\x00\x00\xa5\x05')
         rta, _ = self.ser.send_paq(paq)
         if rta.datos != APP_ACTIVATE_RESPONSE:
             raise InactiveAppException
@@ -687,7 +799,7 @@ class Node(object):
             return self.aplicacion_activa
 
     def check_app_state(self):
-        lab_gen = self.read_ram(0,1)[0]
+        lab_gen = self.read_ram(0, 1)[0]
         self.aplicacion_activa = bool(lab_gen.valor[0] & 0b10000000)
         self.solicitud_desactivacion = bool(lab_gen.valor[0] & 0b01000010)
         return (self.solicitud_desactivacion, self.aplicacion_activa)
@@ -711,7 +823,8 @@ class Node(object):
                 to_read_eeprom = list()
                 for i in to_read:
                     if i >= start + self.buffer:
-                        size = 1 if last_in_paq < start else last_in_paq - start + 1
+                        size = 1 if last_in_paq < start else \
+                            last_in_paq - start + 1
                         to_read_eeprom.append((size, start))
                         start = i
                     else:
@@ -753,9 +866,11 @@ class Node(object):
     def _read_memo(self, inicio, longitud, instance):
         """
 
-        :param inicio: int que indica el indice de incio de memoria que se quiere leer
+        :param inicio: int que indica el indice de incio de memoria que se
+        quiere leer
         :param longitud: int que indica la longitud en bytes que se quiere leer
-        :param instance: str que indica la instancia de la memoria que se quiere leer (RAM o EEPROM)
+        :param instance: str que indica la instancia de la memoria que se
+        quiere leer (RAM o EEPROM)
         :return: Lista de memo_instances para cada uno de los valores leidos
         :raise:
           InactiveAppException: Si la aplicacion esta inactiva.
@@ -764,7 +879,9 @@ class Node(object):
         """
 
         if self.ser.im_master:
-            self._logger.debug("Leyendo memoria del nodo %s.", str(self.lan_dir))
+            self._logger.debug(
+
+            "Leyendo memoria del nodo %s.", str(self.lan_dir))
             paq = Paquete(
                 destino=self.lan_dir,
                 funcion=MEMO_READ_NAMES[instance],
@@ -811,9 +928,11 @@ class Node(object):
 
     def _write_memo(self, inicio, datos, instance):
         """
-        :param inicio: int Indice indicando a partir de que registro de la memoria se quiere escribir
+        :param inicio: int Indice indicando a partir de que registro de la
+        memoria se quiere escribir
         :param datos: str datos que se quieren escribir en hexadecimal
-        :param instance: str que indica la instancia de la memoria que se quiere escribir (RAM o EEPROM)
+        :param instance: str que indica la instancia de la memoria que se
+        quiere escribir (RAM o EEPROM)
         :return: None
         :raise:
           EncodeError: Si el formato de datos no es correcto
@@ -822,7 +941,9 @@ class Node(object):
           ReadException: Si no se pudo leer la respuesta del nodo.
         """
 
-        self._logger.info("Escribiendo datos %s en nodo %s.", binascii.hexlify(datos), str(self.lan_dir))
+        self._logger.info(
+            "Escribiendo datos %s en nodo %s.", binascii.hexlify(datos),
+            str(self.lan_dir))
         try:
             paq = Paquete(
                 destino=self.lan_dir,

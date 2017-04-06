@@ -1,4 +1,6 @@
-import time, zmq, serial
+import time
+import zmq
+import serial
 import binascii
 from threading import Thread, Lock, Event
 from random import random
@@ -7,6 +9,7 @@ from .exceptions import WriteException, ReadException, ChecksumException, \
     NoMasterException, SerialConfigError, NoSlaveException, DecodeError
 from .containers import Paquete
 from .cfg import *
+from .consts import *
 from .utils import get_logger, MasterEvent, GiveMasterEvent
 from .mock_serial import MockSerial
 
@@ -66,14 +69,16 @@ class SerialInterface(object):
 
     def _do_reconect(self):
         if not self.ser_seted.isSet():
-            self._logger.error('Perdimos la conexion con el puerto serie. Se intenta reconectar.')
+            self._logger.error(
+                'Perdimos la conexion con el puerto serie. Reconectando...')
         while not self.ser_seted.isSet() and not self._stop:
             try:
                 self._ser.open()
                 self.ser_seted.set()
                 self._tries_reconect = 0
             except serial.SerialException as e:
-                self._logger.error('Error intentando abrir el puerto serie: %s' % str(e))
+                self._logger.error(
+                    'Error intentando abrir el puerto serie: %s' % str(e))
 
                 self.ser_seted.clear()
                 self._tries_reconect += 1
@@ -86,13 +91,20 @@ class SerialInterface(object):
     def _do_connect(self):
         try:
             if not self._mocking:
-                self._ser = serial.Serial(port=self._serial_port, baudrate=self._baudrate, timeout=self._timeout)
+                self._ser = serial.Serial(
+                    port=self._serial_port,
+                    baudrate=self._baudrate,
+                    timeout=self._timeout)
             else:
-                self._ser = MockSerial(port=self._serial_port, baudrate=self._baudrate, timeout=self._timeout)
+                self._ser = MockSerial(
+                    port=self._serial_port,
+                    baudrate=self._baudrate,
+                    timeout=self._timeout)
             self.ser_seted.set()
             self.check_master()
         except (serial.SerialException, OSError) as e:
-            self._logger.error('Error intentando abrir el puerto serie: %s' % str(e))
+            self._logger.error(
+                'Error intentando abrir el puerto serie: %s' % str(e))
             raise SerialConfigError
 
     def _connection(self):
@@ -109,12 +121,15 @@ class SerialInterface(object):
     def notify_con_master(self, status=1):
         """
         :param status: Indica el estado de la conexion de puerto serie
-        :return: Nada, pero manda dos mensajes. Uno indicando la conexion del puerto serie y el otro indicando la conexion
+        :return: Nada, pero manda dos mensajes. Uno indicando la conexion
+        del puerto serie y el otro indicando la conexion
         del master.
-        El formato de mensaje de la conexion del master es:  PREFIJO im_master want_master give_master node
+        El formato de mensaje de la conexion del master es:  PREFIJO im_master
+        want_master give_master node
         """
         self._logger.debug("Notificando estado de conexion y master.")
-        self.connection_socket.send_string("{1}{0}{2}".format(COMMAND_SEPARATOR, MSG_CON_PREFIX, status))
+        self.connection_socket.send_string("{1}{0}{2}".format(
+            COMMAND_SEPARATOR, MSG_CON_PREFIX, status))
         msg = '{1}{0}{2}{0}{3}{0}{4}'.format(
                 COMMAND_SEPARATOR,
                 MSG_MASTER_PREFIX,
@@ -152,12 +167,16 @@ class SerialInterface(object):
                 rta1 = self._ser.read(len(paq.to_write))
                 self._logger.debug('ECHO: %s', binascii.hexlify(rta1))
                 if not len(rta1):
-                    self._logger.error('No hay respuesta del echo en paquete para el nodo %d', paq.destino)
+                    self._logger.error(
+                        'No hay respuesta del echo en paquete para el nodo %d',
+                        paq.destino)
                     raise ReadException
                 try:
                     paq1 = Paquete(paq=rta1)
                 except ChecksumException:
-                    self._logger.error('No se resuelve checksum en echo para el nodo %d', paq.destino)
+                    self._logger.error(
+                        'No se resuelve checksum en echo para el nodo %d',
+                        paq.destino)
                     raise ReadException
 
                 rta2 = self._ser.read(paq.rta_size)
@@ -196,7 +215,8 @@ class SerialInterface(object):
                     try:
                         funcion, longitud, _ = decode.fun_lon(ser_buffer[1:2])
                         if len(ser_buffer) < longitud + 2:
-                            ser_buffer += self._ser.read(longitud+2-len(ser_buffer))
+                            ser_buffer += self._ser.read(
+                                longitud+2-len(ser_buffer))
                         if len(ser_buffer) < longitud + 3:
                             ser_buffer += self._ser.read()
                         str_paq = ser_buffer[:(longitud+3)]
@@ -208,11 +228,13 @@ class SerialInterface(object):
                         continue
                     if self.want_master.isSet() and paq.funcion == 7 and not len(ser_buffer):
                         self._logger.info('Aceptando oferta de token.')
-                        token_rta = Paquete(origen=0, destino=paq.origen, funcion=7)
+                        token_rta = Paquete(
+                            origen=0, destino=paq.origen, funcion=7)
                         self._ser.write(token_rta.to_write)
                         rta1 = self._ser.read(len(token_rta.to_write))
                         rta2 = self._ser.read(token_rta.rta_size)
-                        self._logger.info('Respuesta del master %s.', binascii.hexlify(rta2))
+                        self._logger.info(
+                            'Respuesta del master %s.', binascii.hexlify(rta2))
                         self.check_master(ser_locked=True)
                         if self.im_master:
                             self.want_master.clear()
@@ -223,7 +245,9 @@ class SerialInterface(object):
                 self.ser_seted.clear()
                 raise ReadException
             except IndexError:
-                self._logger.warning('Funcion read_ser no recibe nada. Longitud ser_buffer %d', len(ser_buffer))
+                self._logger.warning(
+                    'Funcion read_ser no recibe nada. Longitud ser_buffer %d',
+                    len(ser_buffer))
                 self.check_master(ser_locked=True)
                 if self.im_master and not self.want_master.isSet():
                     raise NoSlaveException

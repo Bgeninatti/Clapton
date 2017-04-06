@@ -1,7 +1,8 @@
 import serial
 import struct
 import binascii
-from .exceptions import WriteException, ReadException, ChecksumException, NoMasterException, SerialConfigError
+from .exceptions import WriteException, ReadException, ChecksumException, \
+    NoMasterException, SerialConfigError
 
 
 class MockSerial(object):

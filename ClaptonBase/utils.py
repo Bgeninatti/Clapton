@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-import logging, time
+import logging
+import time
 from logging.handlers import RotatingFileHandler
 try:
     from threading import _Event as Event
@@ -20,7 +21,8 @@ def get_logger(logger_name, log_level=None, log_file=None, backup_count=1):
         else:
             handler = RotatingFileHandler(log_file, backupCount=backup_count)
         handler.setLevel(level)
-        fmt = ("%(asctime)s - %(process)d/%(threadName)s - %(name)s:%(module)s.%(funcName)s [%(levelname)s] %(message)s")
+        fmt = ("%(asctime)s - %(process)d/%(threadName)s - " +
+               "%(name)s:%(module)s.%(funcName)s [%(levelname)s] %(message)s")
         handler.setFormatter(logging.Formatter(fmt))
         logger.addHandler(handler)
         logger.setLevel(level)

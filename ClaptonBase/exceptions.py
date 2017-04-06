@@ -28,7 +28,8 @@ class ChecksumException(Exception):
 class NodeNotExists(Exception):
 
     code = 403
-    error_msg = 'No se puede realizar la operacion sobre un nodo que no existe.'
+    error_msg = 'No se puede realizar la operacion sobre un ' \
+        'nodo que no existe.'
 
     def __init__(self):
         super(NodeNotExists, self).__init__(NodeNotExists.error_msg)
@@ -37,16 +38,19 @@ class NodeNotExists(Exception):
 class InactiveAppException(Exception):
 
     code = 500
-    error_msg = 'No se puede realizar la operacion estando la aplicacion inactiva.'
+    error_msg = 'No se puede realizar la operacion estando la ' \
+        'aplicacion inactiva.'
 
     def __init__(self):
-        super(InactiveAppException, self).__init__(InactiveAppException.error_msg)
+        super(InactiveAppException, self).__init__(
+            InactiveAppException.error_msg)
 
 
 class ActiveAppException(Exception):
 
     code = 501
-    error_msg = 'No se puede realizar la operacion estando la aplicacion activa.'
+    error_msg = 'No se puede realizar la operacion estando la ' \
+        'aplicacion activa.'
 
     def __init__(self):
         super(ActiveAppException, self).__init__(ActiveAppException.error_msg)
@@ -73,7 +77,8 @@ class NoMasterException(Exception):
 class NoSlaveException(Exception):
 
     code = 301
-    error_msg = 'No se puede continuar la lectura de paquetes. Ya no soy esclavo.'
+    error_msg = 'No se puede continuar la lectura de paquetes. ' \
+        'Ya no soy esclavo.'
 
     def __init__(self):
         super(NoSlaveException, self).__init__(NoSlaveException.error_msg)
@@ -113,7 +118,9 @@ class EncodeError(Exception):
 class SerialConfigError(Exception):
 
     code = 700
-    error_msg = 'Hubo un error intentando abrir el puerto serie. Es probable que se encuentre mal configurado o haya un problema de permisos.'
+    error_msg = 'Hubo un error intentando abrir el puerto serie. ' \
+        'Es probable que se encuentre mal configurado o haya un problema ' \
+        'de permisos.'
 
     def __init__(self):
         super(SerialConfigError, self).__init__(SerialConfigError.error_msg)

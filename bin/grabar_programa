@@ -1,12 +1,26 @@
 #!/usr/bin/env python3
 
-import logging, argparse, time, os
+import logging
+import argparse
+import time
+import os
 from ClaptonBase import serial_instance, containers
 
 
-parser = argparse.ArgumentParser(description='Indica el archivo que se quiere grabar y en que nodo.')
-parser.add_argument('--node', '-n', type=int, dest="lan_dir", help="Dirección del nodo que se quiere grabar.")
-parser.add_argument('--file', '-f', type=str, dest="file", help="Nombre del archivo HEX que tiene el programa.")
+parser = argparse.ArgumentParser(
+    description='Indica el archivo que se quiere grabar y en que nodo.')
+parser.add_argument(
+    '--node',
+    '-n',
+    type=int,
+    dest="lan_dir",
+    help="Dirección del nodo que se quiere grabar.")
+parser.add_argument(
+    '--file',
+    '-f',
+    type=str,
+    dest="file",
+    help="Nombre del archivo HEX que tiene el programa.")
 
 args = parser.parse_args()
 logger = logging.getLogger(__name__)

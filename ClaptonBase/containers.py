@@ -244,7 +244,6 @@ class Node(object):
         # Guardo direccion. Tiene que ser un int. Si no lo tiro.
         self.lan_dir = int(lan_dir)
         self._logger.info("Iniciando nodo %s.", str(self.lan_dir))
-        self.identified = False
         # Si nunca lo vi el timestamp no existe.
         self.last_seen = None
         """
@@ -579,25 +578,25 @@ class Node(object):
                 if len(rta.datos[3:4]):
                     servicio0 = struct.unpack('b', rta.datos[3:4])[0]
                     self.servicios['0b7'] = {
-                        'estado': servicio0 & 0b10000000,
+                        'estado': servicio0 & 0b10000000 / 128,
                         'desc': 'Puede ser maestro.'}
                     self.servicios['0b6'] = {
-                        'estado': servicio0 & 0b01000000,
+                        'estado': servicio0 & 0b01000000 / 64,
                         'desc': 'Tiene entradas analogicas de alta resolucion.'}
                     self.servicios['0b5'] = {
-                        'estado': servicio0 & 0b00100000,
+                        'estado': servicio0 & 0b00100000 / 32,
                         'desc': 'Tiene entradas digitales o analogicas de baja resolucion.'}
                     self.servicios['0b4'] = {
-                        'estado': servicio0 & 0b00010000,
+                        'estado': servicio0 & 0b00010000 / 16,
                         'desc': 'Tiene salidas analogicas o tipo PWM.'}
                     self.servicios['0b3'] = {
-                        'estado': servicio0 & 0b00001000,
+                        'estado': servicio0 & 0b00001000 / 8,
                         'desc': 'Tiene salidas a rele o digitales a transistor.'}
                     self.servicios['0b2'] = {
-                        'estado': servicio0 & 0b00000100,
+                        'estado': servicio0 & 0b00000100 / 4,
                         'desc': 'Tiene entradas de cuenta de alta velocidad.'}
                     self.servicios['0b1'] = {
-                        'estado': servicio0 & 0b00000010,
+                        'estado': servicio0 & 0b00000010 / 2,
                         'desc': 'Tiene display y/o pulsadores.'}
                     self.servicios['0b0'] = {
                         'estado': servicio0 & 0b00000001,
@@ -607,36 +606,34 @@ class Node(object):
                     self.puede_master = servicio1 & 0b10000000
                     self.tiene_eeprom = servicio1 & 0b00000001
                     self.servicios['1b7'] = {
-                        'estado': servicio1 & 0b10000000,
+                        'estado': servicio1 & 0b10000000 / 128,
                         'desc': 'No implementado.'}
                     self.servicios['1b6'] = {
-                        'estado': servicio1 & 0b01000000,
+                        'estado': servicio1 & 0b01000000 / 64,
                         'desc': 'No implementado.'}
                     self.servicios['1b5'] = {
-                        'estado': servicio1 & 0b00100000,
+                        'estado': servicio1 & 0b00100000 / 32,
                         'desc': 'No implementado.'}
                     self.servicios['1b4'] = {
-                        'estado': servicio1 & 0b00010000,
+                        'estado': servicio1 & 0b00010000 / 16,
                         'desc': 'No implementado.'}
                     self.servicios['1b3'] = {
-                        'estado': servicio1 & 0b00001000,
+                        'estado': servicio1 & 0b00001000 / 8,
                         'desc': 'No implementado.'}
                     self.servicios['1b2'] = {
-                        'estado': servicio1 & 0b00000100,
+                        'estado': servicio1 & 0b00000100 / 4,
                         'desc': 'No implementado.'}
                     self.servicios['1b1'] = {
-                        'estado': servicio1 & 0b00000010,
+                        'estado': servicio1 & 0b00000010 / 2,
                         'desc': 'No implementado.'}
                     self.servicios['1b0'] = {
                         'estado': servicio1 & 0b00000001,
                         'desc': 'No implementado.'}
-                self.identified = True
                 status = 1
         except IndexError:
             self._logger.warning(
                 "Nodo %s posiblemente con una version vieja de software.",
                 str(self.lan_dir))
-            self.identified = True
             status = 1
         except (WriteException, ReadException) as e:
             if self.ser.im_master:
@@ -808,7 +805,7 @@ class Node(object):
         msg = '{1}_{3}{0}{2}'.format(
                 COMMAND_SEPARATOR,
                 MSG_NODE_PREFIX,
-                self.__str__(),
+                self.report(),
                 self.lan_dir)
         self.ser.connection_socket.send_string(msg)
 
@@ -954,6 +951,19 @@ class Node(object):
             raise EncodeError
         self.ser.send_paq(paq)
 
+    def report(self):
+        return json.dumps({
+            'lan_dir': self.lan_dir,
+            'status': self.status,
+            'im_master': self.im_master,
+            'enabled_read_node': self.enabled_read_node,
+            'enabled_read_ram':  self.enabled_read_ram,
+            'enabled_read_eeprom': self.enabled_read_eeprom,
+            'enabled_read_eeprom_index': [i for i in range(self.eeprom_size+1) if i not in self.index_disabled_eeprom],
+            'enabled_read_ram_index': [i for i in range(self.ram_read+1) if i not in self.index_disabled_ram],
+            'time': time.time(),
+        })
+
     def __str__(self):
         return json.dumps({
             'lan_dir': self.lan_dir,
@@ -965,10 +975,11 @@ class Node(object):
             'fnapp': self.fnapp,
             'eeprom_size': self.eeprom_size,
             'im_master': self.im_master,
-            'identified': self.identified,
             'enabled_read_node': self.enabled_read_node,
             'enabled_read_ram':  self.enabled_read_ram,
             'enabled_read_eeprom': self.enabled_read_eeprom,
+            'enabled_read_eeprom_index': [i for i in range(self.eeprom_size+1) if i not in self.index_disabled_eeprom],
+            'enabled_read_ram_index': [i for i in range(self.ram_read+1) if i not in self.index_disabled_ram],
             'servicios': self.servicios,
             'time': time.time(),
         })

@@ -578,7 +578,7 @@ class Node(object):
                 self.ini_eeprom = struct.unpack('b', rta.datos[9:10])[0] \
                     if len(rta.datos[9:10]) else None
                 if len(rta.datos[3:4]):
-                    servicio0 = struct.unpack('b', rta.datos[3:4])[0]
+                    servicio0 = int(struct.unpack('b', rta.datos[3:4])[0])
                     self.servicios['0b7'] = {
                         'estado': servicio0 & 0b10000000 / 128,
                         'desc': 'Puede ser maestro.'}
@@ -604,7 +604,7 @@ class Node(object):
                         'estado': servicio0 & 0b00000001,
                         'desc': 'Tiene EEPROM.'}
                 if len(rta.datos[4:5]):
-                    servicio1 = struct.unpack('b', rta.datos[4:5])[0]
+                    servicio1 = int(struct.unpack('b', rta.datos[4:5])[0])
                     self.puede_master = servicio1 & 0b10000000
                     self.tiene_eeprom = servicio1 & 0b00000001
                     self.servicios['1b7'] = {

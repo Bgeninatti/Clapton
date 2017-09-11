@@ -267,15 +267,6 @@ class Node(object):
         self._can_update = Event()
         self._can_update.set()
 
-        # Banderas de lectura del nodo.
-        self._enabled_read_node = DEFAULT_REQUIRED_NODE
-        self._enabled_read_ram = DEFAULT_REQUIRED_RAM
-        self._enabled_read_eeprom = DEFAULT_REQUIRED_EEPROM
-        self.index_disabled_ram = list()
-        self.index_disabled_eeprom = list()
-        self.to_read_ram = list()
-        self.to_read_eeprom = list()
-
         # Inicio con sizes estandar para poder usar hasta que el nodo sea
         # identificado.
         self.buffer = DEFAULT_BUFFER
@@ -285,6 +276,15 @@ class Node(object):
         self.ram_read = DEFAULT_RAM_READ
         self.ram_write = DEFAULT_RAM_WRITE
 
+        # Banderas de lectura del nodo.
+        self._enabled_read_node = required
+        self._enabled_read_ram = required_ram
+        self._enabled_read_eeprom = required_eeprom
+        self.index_disabled_ram = set()
+        self.index_disabled_eeprom = set()
+        self.to_read_ram = list()
+        self.to_read_eeprom = list()
+
         # Estos son los parametros requeridos de lectura para que la aplicacion
         # funcione. Se dara warning cuando se quiera desactivarlos.
         self.required = required
@@ -293,12 +293,9 @@ class Node(object):
         self.required_ram_index = required_ram_index
         self.required_eeprom_index = required_eeprom_index
 
-        self.enabled_read_ram = required_ram or \
-            len(required_ram_index) > 0
-        self.enabled_read_eeprom = required_eeprom or \
-            len(required_eeprom_index) > 0
-        self.enabled_read_node = required or self.enabled_read_ram or \
-            self.enabled_read_eeprom
+        self.enabled_read_ram = bool(required_ram or len(required_ram_index))
+        self.enabled_read_eeprom = bool(required_eeprom or len(required_eeprom_index))
+        self.enabled_read_node = bool(required or self.enabled_read_ram or self.enabled_read_eeprom)
         self.enable_eeprom_sector(*required_eeprom_index)
         self.enable_ram_sector(*required_ram_index)
 
@@ -451,9 +448,10 @@ class Node(object):
         if self._can_update.isSet():
             self._can_update.clear()
             for value in args:
-                if value not in self.index_disabled_eeprom and value in range(int(self.eeprom_size + 1)):
-                    self.index_disabled_eeprom.append(value)
-                self.index_disabled_eeprom = sorted(self.index_disabled_eeprom)
+                if value not in range(self.eeprom_size + 1):
+                    self._logger.warning("El indice {} se sale de la eeprom.".format(value))
+                    continue
+                self.index_disabled_eeprom.add(value)
             self._can_update.set()
             self._update_to_read_eeprom()
 
@@ -475,9 +473,10 @@ class Node(object):
         if self._can_update.isSet():
             self._can_update.clear()
             for value in args:
-                if value in self.index_disabled_eeprom and value in range(int(self.eeprom_size + 1)):
+                try:
                     self.index_disabled_eeprom.remove(value)
-                self.index_disabled_eeprom = sorted(self.index_disabled_eeprom)
+                except KeyError as e:
+                    self._logger.warning("El indice {} de la eeprom ya estaba activo.".format(value))
             self._can_update.set()
             self._update_to_read_eeprom()
 
@@ -495,7 +494,7 @@ class Node(object):
         if any([a in self.required_ram_index for a in args]):
             self._logger.warning(
                 "Desactivando indices de ram del nodo %d indicados como " +
-                "requeridos", (self.lan_dir,))
+                "requeridos" % (self.lan_dir,))
         self._logger.info(
             "Desactivando sectores de ram %s del nodo %s.",
             str(args), str(self.lan_dir))
@@ -503,11 +502,13 @@ class Node(object):
         if self._can_update.isSet():
             self._can_update.clear()
             for value in args:
-                if value not in self.index_disabled_ram and value in range(int(self.ram_read + 1)):
-                    self.index_disabled_ram.append(value)
-                self.index_disabled_ram = sorted(self.index_disabled_ram)
+                if value not in range(self.ram_read + 1):
+                    self._logger.warning("El indice {} se sale de la ram de lectura.".format(value))
+                    continue
+                self.index_disabled_ram.add(value)
             self._can_update.set()
             self._update_to_read_ram()
+
 
     def enable_ram_sector(self, *args):
         """
@@ -527,9 +528,10 @@ class Node(object):
         if self._can_update.isSet():
             self._can_update.clear()
             for value in args:
-                if value in self.index_disabled_ram and value in range(int(self.ram_read + 1)):
+                try:
                     self.index_disabled_ram.remove(value)
-                self.index_disabled_ram = sorted(self.index_disabled_ram)
+                except KeyError as e:
+                    self._logger.warning("El indice {} de la ram ya estaba activo.".format(value))
             self._can_update.set()
             self._update_to_read_ram()
 

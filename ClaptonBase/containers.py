@@ -448,9 +448,6 @@ class Node(object):
         if self._can_update.isSet():
             self._can_update.clear()
             for value in args:
-                if value not in range(self.eeprom_size + 1):
-                    self._logger.warning("El indice {} se sale de la eeprom.".format(value))
-                    continue
                 self.index_disabled_eeprom.add(value)
             self._can_update.set()
             self._update_to_read_eeprom()
@@ -502,9 +499,6 @@ class Node(object):
         if self._can_update.isSet():
             self._can_update.clear()
             for value in args:
-                if value not in range(self.ram_read + 1):
-                    self._logger.warning("El indice {} se sale de la ram de lectura.".format(value))
-                    continue
                 self.index_disabled_ram.add(value)
             self._can_update.set()
             self._update_to_read_ram()

@@ -578,58 +578,58 @@ class Node(object):
                 self.ini_eeprom = struct.unpack('b', rta.datos[9:10])[0] \
                     if len(rta.datos[9:10]) else None
                 if len(rta.datos[3:4]):
-                    servicio0 = int(struct.unpack('b', rta.datos[3:4])[0])
+                    servicio0 = struct.unpack('b', rta.datos[3:4])[0]
                     self.servicios['0b7'] = {
-                        'estado': servicio0 & 0b10000000 / 128,
+                        'estado': (servicio0 & 0b10000000) / 128,
                         'desc': 'Puede ser maestro.'}
                     self.servicios['0b6'] = {
-                        'estado': servicio0 & 0b01000000 / 64,
+                        'estado': (servicio0 & 0b01000000) / 64,
                         'desc': 'Tiene entradas analogicas de alta resolucion.'}
                     self.servicios['0b5'] = {
-                        'estado': servicio0 & 0b00100000 / 32,
+                        'estado': (servicio0 & 0b00100000) / 32,
                         'desc': 'Tiene entradas digitales o analogicas de baja resolucion.'}
                     self.servicios['0b4'] = {
-                        'estado': servicio0 & 0b00010000 / 16,
+                        'estado': (servicio0 & 0b00010000) / 16,
                         'desc': 'Tiene salidas analogicas o tipo PWM.'}
                     self.servicios['0b3'] = {
-                        'estado': servicio0 & 0b00001000 / 8,
+                        'estado': (servicio0 & 0b00001000) / 8,
                         'desc': 'Tiene salidas a rele o digitales a transistor.'}
                     self.servicios['0b2'] = {
-                        'estado': servicio0 & 0b00000100 / 4,
+                        'estado': (servicio0 & 0b00000100) / 4,
                         'desc': 'Tiene entradas de cuenta de alta velocidad.'}
                     self.servicios['0b1'] = {
-                        'estado': servicio0 & 0b00000010 / 2,
+                        'estado': (servicio0 & 0b00000010) / 2,
                         'desc': 'Tiene display y/o pulsadores.'}
                     self.servicios['0b0'] = {
-                        'estado': servicio0 & 0b00000001,
+                        'estado': (servicio0 & 0b00000001),
                         'desc': 'Tiene EEPROM.'}
                 if len(rta.datos[4:5]):
-                    servicio1 = int(struct.unpack('b', rta.datos[4:5])[0])
+                    servicio1 = struct.unpack('b', rta.datos[4:5])[0]
                     self.puede_master = servicio1 & 0b10000000
                     self.tiene_eeprom = servicio1 & 0b00000001
                     self.servicios['1b7'] = {
-                        'estado': servicio1 & 0b10000000 / 128,
+                        'estado': (servicio1 & 0b10000000) / 128,
                         'desc': 'No implementado.'}
                     self.servicios['1b6'] = {
-                        'estado': servicio1 & 0b01000000 / 64,
+                        'estado': (servicio1 & 0b01000000) / 64,
                         'desc': 'No implementado.'}
                     self.servicios['1b5'] = {
-                        'estado': servicio1 & 0b00100000 / 32,
+                        'estado': (servicio1 & 0b00100000) / 32,
                         'desc': 'No implementado.'}
                     self.servicios['1b4'] = {
-                        'estado': servicio1 & 0b00010000 / 16,
+                        'estado': (servicio1 & 0b00010000) / 16,
                         'desc': 'No implementado.'}
                     self.servicios['1b3'] = {
-                        'estado': servicio1 & 0b00001000 / 8,
+                        'estado': (servicio1 & 0b00001000) / 8,
                         'desc': 'No implementado.'}
                     self.servicios['1b2'] = {
-                        'estado': servicio1 & 0b00000100 / 4,
+                        'estado': (servicio1 & 0b00000100) / 4,
                         'desc': 'No implementado.'}
                     self.servicios['1b1'] = {
-                        'estado': servicio1 & 0b00000010 / 2,
+                        'estado': (servicio1 & 0b00000010) / 2,
                         'desc': 'No implementado.'}
                     self.servicios['1b0'] = {
-                        'estado': servicio1 & 0b00000001,
+                        'estado': (servicio1 & 0b00000001),
                         'desc': 'No implementado.'}
                 status = 1
         except IndexError:

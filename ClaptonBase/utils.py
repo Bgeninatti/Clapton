@@ -26,7 +26,6 @@ def get_logger(logger_name, log_level=None, log_file=None, backup_count=1):
         handler.setFormatter(logging.Formatter(fmt))
         logger.addHandler(handler)
         logger.setLevel(level)
-
     return logger
 
 

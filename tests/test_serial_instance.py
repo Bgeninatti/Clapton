@@ -1,47 +1,28 @@
-import unittest2
+import unittest
 from ClaptonBase.serial_instance import SerialInterface
 from ClaptonBase.exceptions import SerialConfigError, NoMasterException, \
     ReadException, WriteException
 from ClaptonBase.containers import Paquete
 from ClaptonBase.cfg import INSTANT_RECONECT_TRIES
 
-class SerialInstanceTestCase(unittest2.TestCase):
 
-    def test_00_stop_ok(self):
-        ser = SerialInterface(mocking=True)
+class SerialInstanceTestCase(unittest.TestCase):
+
+    def test_00_do_connect_ok(self):
+        ser = SerialInterface()
         ser.start()
         self.assertIsNone(ser.stop())
 
-    def test_01_initial_conect_error(self):
+    def test_01_do_connect_exception(self):
+        ser = SerialInterface()
+        isOpen = ser._do_connect()
+        self.assertTrue(isOpen)
+        ser.close()
+
+    def test_02_initial_conect_error(self):
         with self.assertRaises(SerialConfigError):
             ser = SerialInterface(serial_port='puerto')
             ser._do_connect()
-        ser.stop()
-
-    def test_02_do_reconect_ok(self):
-        ser = SerialInterface(mocking=True)
-        ser._do_connect()
-        ser.ser_seted.clear()
-        ser._do_reconect()
-        self.assertTrue(ser.ser_seted.isSet())
-        ser.stop()
-
-    def test_03_do_reconect_instant_reconect(self):
-        ser = SerialInterface(mocking=True)
-        ser._do_connect()
-        ser.ser_seted.clear()
-        ser._ser.raise_serial_error = 1
-        ser._do_reconect()
-        self.assertTrue(ser.ser_seted.isSet())
-        ser.stop()
-
-    def test_04_do_reconect_long_reconect(self):
-        ser = SerialInterface(mocking=True)
-        ser._do_connect()
-        ser.ser_seted.clear()
-        ser._ser.raise_serial_error = INSTANT_RECONECT_TRIES + 1
-        ser._do_reconect()
-        self.assertTrue(ser.ser_seted.isSet())
         ser.stop()
 
     def test_05_send_paq_ok(self):

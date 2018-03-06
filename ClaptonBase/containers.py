@@ -93,8 +93,8 @@ class Paquete(object):
                 raise ChecksumException
             # Decodifico las variables
             self.to_write = paq
-            self.origen, self.destino, _ = decode.fuen_des(paq[0:1])
-            self.funcion, self.longitud, _ = decode.fun_lon(paq[1:2])
+            self.origen, self.destino = decode.fuen_des(paq[0:1])
+            self.funcion, self.longitud = decode.fun_lon(paq[1:2])
             self.datos = paq[2:-1]
         # Paquete como parametros
         elif origen is not None and destino is not None and funcion is not None:
@@ -124,10 +124,7 @@ class Paquete(object):
         return b1 + b2 + self.datos + self.cs
 
     def _make_representation(self):
-        rep = binascii.hexlify(self.to_write)
-        if sys.version_info >= (3,):
-            rep = rep.decode()
-        return rep
+        return binascii.hexlify(self.to_write).decode()
 
     def _validate(self):
         if self.funcion == 7:
@@ -193,35 +190,28 @@ class Paquete(object):
 
 class MemoInstance(object):
 
-    def __init__(self, nodo, tipo, indice, timestamp=None, valor=None):
+    def __init__(self, nodo, tipo, inicio, timestamp=None, valores=b''):
         # contenedor dummy de atributos. Los datos no son requeridos para
         # podera armar la memoria de a dos paquetes cuando no soy master.
         self.timestamp = timestamp
         self.nodo = nodo
         self.tipo = tipo
-        self.indice = indice
-        self.valor = valor
-        self._representation = None
-
-    @property
-    def representation(self):
-        if self.valor is None:
-            return
-        else:
-            self._representation = self._make_representation()
-        return self._representation
+        self.inicio = inicio
+        self.valores = valores
+        self.longitud = len(self.valores)
+        self.representation = self._make_representation()
 
     def _make_representation(self):
-        parsed_data = binascii.hexlify(self.valor)
-        if sys.version_info >= (3,):
-            parsed_data = parsed_data.decode()
         return '{1}_{2}_{3}{0}{4}{0}{5}'.format(
             COMMAND_SEPARATOR,
             self.nodo,
             self.tipo,
-            self.indice,
+            self.inicio,
             self.timestamp,
-            parsed_data)
+            binascii.hexlify(self.valores))
+
+    def get_index(self, index):
+        return self.valores[index-self.inicio:index-self.inicio+1]
 
 
 class Node(object):

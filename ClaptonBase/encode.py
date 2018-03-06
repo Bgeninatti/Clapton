@@ -34,7 +34,6 @@ def fun_lon(funcion, longitud):
         raise EncodeError
     if funcion > 7 or longitud > 31:
         raise EncodeError
-
     try:
         return struct.pack('B', int(str(
             bin(funcion)[2:].zfill(3)) + str(bin(longitud)[2:].zfill(5)), 2))

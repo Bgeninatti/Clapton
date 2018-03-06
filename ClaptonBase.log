@@ -346,3 +346,8 @@
 2017-09-11 11:51:09,575 - 11039/Thread-53 - ClaptonBase.serial_instance:serial_instance.check_master [INFO] Chequeando estado del master.
 2017-09-11 11:51:09,575 - 11039/Thread-53 - ClaptonBase.serial_instance:serial_instance.check_master [INFO] Bloqueando puerto serie.
 2017-09-11 11:51:11,575 - 11039/Thread-53 - ClaptonBase.serial_instance:serial_instance.check_master [INFO] Master: True
+2017-09-11 12:43:58,140 - 13473/MainThread - ClaptonBase.serial_instance:serial_instance.__init__ [INFO] Iniciando SerialInstance.
+2017-09-11 12:43:58,141 - 13473/Thread-34 - ClaptonBase.serial_instance:serial_instance._connection [INFO] Iniciando ConnectionThread.
+2017-09-11 12:43:58,142 - 13473/Thread-34 - ClaptonBase.serial_instance:serial_instance.check_master [INFO] Chequeando estado del master.
+2017-09-11 12:43:58,142 - 13473/Thread-34 - ClaptonBase.serial_instance:serial_instance.check_master [INFO] Bloqueando puerto serie.
+2017-09-11 12:44:00,142 - 13473/Thread-34 - ClaptonBase.serial_instance:serial_instance.check_master [INFO] Master: True

@@ -229,4 +229,4 @@ class SerialInterface(object):
         finally:
             if not ser_locked:
                 self.using_ser.release()
-        self._logger.info('Chequeo del master: {}'format(str(self.im_master)))
+        self._logger.info('Chequeo del master: {}'.format(str(self.im_master)))

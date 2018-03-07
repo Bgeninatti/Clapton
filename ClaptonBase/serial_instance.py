@@ -135,7 +135,7 @@ class SerialInterface(object):
                 except (ChecksumException, IndexError) as e:
                     raise WriteException
                 return paq_rta
-            except SerialException as e:
+            except serial.SerialException as e:
                 self._logger.error(
                     'Error en el puerto serie: %s'.format(str(e))
                 )
@@ -179,7 +179,7 @@ class SerialInterface(object):
                     ser_buffer = ser_buffer[1:]
                     continue
 
-                except SerialException as e:
+                except serial.SerialException as e:
                     self._logger.error(
                         'Error en el puerto serie: %s'.format(str(e))
                     )

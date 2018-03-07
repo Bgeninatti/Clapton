@@ -824,7 +824,7 @@ class Node(object):
                 memo = MemoInstance(
                     nodo=self.lan_dir,
                     tipo=instance,
-                    indice=indice,
+                    inicio=indice,
                     timestamp=timestamp,
                     valores=paq.datos[k:k+1]
                 )

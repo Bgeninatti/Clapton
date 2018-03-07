@@ -9,7 +9,10 @@ from .exceptions import WriteException, ReadException, ChecksumException, \
     NoMasterException, SerialConfigError, NoSlaveException, DecodeError
 from .containers import Paquete
 from .cfg import *
-from .consts import *
+
+from .consts import (LINE_REGEX, READ_FUNCTIONS, END_LINE, MEMO_NAMES,
+                     APP_ACTIVATE_RESPONSE, APP_DEACTIVATE_RESPONSE,
+                     WRITE_FUNCTIONS, MEMO_WRITE_NAMES, MEMO_READ_NAMES)
 from .utils import get_logger, MasterEvent, GiveMasterEvent
 
 
@@ -49,9 +52,9 @@ class SerialInterface(object):
     def stop(self):
         self._logger.info("Parando SerialInstance.")
         self._stop = True
-        if self._ser is not None:
-            self._ser.close()
         self._connection_thread.join()
+        self._ser.close()
+        self._connection_thread = Thread(target=self._connection)
 
     def _do_connect(self):
         try:
@@ -59,7 +62,7 @@ class SerialInterface(object):
             self.check_master()
         except (serial.SerialException, OSError) as e:
             self._logger.error(
-                'Error intentando abrir el puerto serie: %s' % str(e))
+                'Error intentando abrir el puerto serie: {}'.format(str(e)))
             raise SerialConfigError
         return self._ser.isOpen()
 
@@ -111,34 +114,30 @@ class SerialInterface(object):
             self.using_ser.acquire()
             try:
                 self._ser.flushInput()
-                self._logger.debug('Escribiendo: %s', paq.representation)
+                self._logger.debug('Escribiendo: {}'.format(paq.representation))
                 self._ser.write(paq.to_write)
                 echo = self._ser.read(len(paq.to_write))
-                self._logger.debug('ECHO: %s', binascii.hexlify(echo))
+                self._logger.debug('ECHO: {}'.format(binascii.hexlify(echo)))
                 if not len(echo):
                     self._logger.error(
-                        'No hay respuesta del echo en paquete para el nodo %d',
-                        paq.destino)
+                        'No hay respuesta del echo en paquete para el nodo {}'.format(paq.destino))
                     raise ReadException
                 try:
                     paq_echo = Paquete(paq=echo)
                 except ChecksumException:
                     self._logger.error(
-                        'No se resuelve checksum en echo para el nodo %d',
-                        paq.destino)
+                        'No se resuelve checksum en echo para el nodo {}'.format(paq.destino))
                     raise ReadException
 
                 rta = self._ser.read(paq.rta_size)
-                self._logger.debug('Respuesta: %s', binascii.hexlify(rta))
+                self._logger.debug('Respuesta: {0}'.format(binascii.hexlify(rta)))
                 try:
                     paq_rta = Paquete(paq=rta)
                 except (ChecksumException, IndexError) as e:
                     raise WriteException
                 return paq_rta
             except serial.SerialException as e:
-                self._logger.error(
-                    'Error en el puerto serie: %s'.format(str(e))
-                )
+                self._logger.error('Error en el puerto serie: {}'.format(str(e)))
                 raise WriteException
             finally:
                 self.using_ser.release()
@@ -181,7 +180,7 @@ class SerialInterface(object):
 
                 except serial.SerialException as e:
                     self._logger.error(
-                        'Error en el puerto serie: %s'.format(str(e))
+                        'Error en el puerto serie: {}'.format(str(e))
                     )
 
                 except IndexError:
@@ -201,7 +200,7 @@ class SerialInterface(object):
         echo = self._ser.read(len(token_rta.to_write))
         rta = self._ser.read(token_rta.rta_size)
         self._logger.info(
-            'Respuesta del master %s.', binascii.hexlify(rta))
+            'Respuesta del master {}.'.format(binascii.hexlify(rta)))
 
     def check_master(self, ser_locked=False):
         """

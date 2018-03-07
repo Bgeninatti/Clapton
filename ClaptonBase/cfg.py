@@ -11,15 +11,6 @@ DEFAULT_SERIAL_TIMEOUT = .25
 # PERIODOS
 # STATUS_PERIOD define el intervalo de tiempo en el que se reporta el estado
 # de conexion del puerto serie.
-CON_STATUS_PERIOD = 1
-# INSTANT_RECONECT_TRIES define la cantidad de veces que se intentara
-# reconectar al puerto serie de forma instantanea.
-# Si fallan todos los intentos de reconexion se intentara cada una cantidad
-# de segundos determinada por LONG_RECONECT_PERIOD
-INSTANT_RECONECT_TRIES = 5
-# Determina los segundos de espera antes de volver a reconectar si la
-# reconexion instantanea definida por INSTANT_RECONECT_TRIES falla.
-LONG_RECONECT_PERIOD = 5
 
 WAIT_MASTER_PERIOD = 2
 MASTER_EVENT_TIMEOUT = 20
@@ -42,3 +33,4 @@ MSG_CON_PREFIX = 'con'
 MSG_NODE_PREFIX = 'node'
 MSG_MASTER_PREFIX = 'master'
 COMMAND_SEPARATOR = '\n'
+CON_STATUS_PERIOD = 1

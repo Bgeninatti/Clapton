@@ -7,7 +7,9 @@ import sys
 from threading import Event, Lock
 
 from .cfg import *
-from .consts import *
+from .consts import (LINE_REGEX, READ_FUNCTIONS, END_LINE, MEMO_NAMES,
+                     APP_ACTIVATE_RESPONSE, APP_DEACTIVATE_RESPONSE,
+                     WRITE_FUNCTIONS, MEMO_WRITE_NAMES, MEMO_READ_NAMES)
 from . import encode, decode
 from .exceptions import ChecksumException, WriteException, ReadException, \
     TokenExeption, NodeNotExists, InactiveAppException, ActiveAppException, \
@@ -210,7 +212,9 @@ class MemoInstance(object):
             self.timestamp,
             binascii.hexlify(self.valores))
 
-    def get_index(self, index):
+    def get(self, index):
+        if index < self.inicio or index > self.inicio + self.longitud:
+            raise IndexError
         return self.valores[index-self.inicio:index-self.inicio+1]
 
 
@@ -230,10 +234,10 @@ class Node(object):
         # Inicio logger
         self._logger = get_logger(__name__, log_level, log_file)
         # Guardo la instancia del puerto serie.
-        self.ser = ser
+        self._ser = ser
         # Guardo direccion. Tiene que ser un int. Si no lo tiro.
         self.lan_dir = int(lan_dir)
-        self._logger.info("Iniciando nodo %s.", str(self.lan_dir))
+        self._logger.info("Iniciando nodo {}.".format(self.lan_dir))
         # Si nunca lo vi el timestamp no existe.
         self.last_seen = None
         """
@@ -290,7 +294,7 @@ class Node(object):
         self.enable_ram_sector(*required_ram_index)
 
         # En donde se almacenaran los servicios leidos del pic
-        self.servicios = {}
+        self._servicios = {}
 
     @property
     def status(self):
@@ -303,19 +307,13 @@ class Node(object):
         :raise:
           TypeError: si el estado no es int
         """
-        if type(value) is not int:
-            self._logger.error(
-                "Parametro invalido para atributo status del nodo %s.",
-                str(self.lan_dir))
-            raise TypeError
         self._can_update.wait()
         if self._can_update.isSet():
             # Actualizo el estado y renuevo timestamp si el estado es 1.
             self._can_update.clear()
             self._logger.debug(
-                "Reportando estado del nodo %s.", str(self.lan_dir))
+                "Reportando estado del nodo {}.".format(self.lan_dir))
             self._status = value
-            self._send_sate()
             if value == 1:
                 self.last_seen = time.time()
             self._can_update.set()
@@ -331,20 +329,15 @@ class Node(object):
         :raise:
           TypeError: si el valor no es bool
         """
-        if type(value) is not bool:
-            self._logger.error(
-                "Parametro invalido para enable_read_node del nodo %s",
-                str(self.lan_dir))
-            raise TypeError
 
         if self.required and not value:
             self._logger.warning(
-                "El nodo %d es requerido y se esta desactivando su lectura",
-                self.lan_dir)
+                "El nodo {} es requerido y se esta desactivando su lectura".format(self.lan_dir))
 
         self._logger.info(
-            "%sctivando lectura del nodo %s.", ('A' if value else 'Desa'),
-            str(self.lan_dir))
+            "{0}ctivando lectura del nodo {1}.".format(
+                ('A' if value else 'Desa'),
+                self.lan_dir))
 
         self._can_update.wait()
         if self._can_update.isSet():
@@ -363,20 +356,14 @@ class Node(object):
         :raise:
           TypeError: si el valor no es bool
         """
-        if type(value) is not bool:
-            self._logger.error(
-                "Parametro invalido para enable_read_ram del nodo %s.",
-                str(self.lan_dir))
-            raise TypeError
-
         if self.required_ram and not value:
             self._logger.warning(
-                "La memoria ram del nodo %d es requerida y se esta " +
-                "desactivando su lectura" % (self.lan_dir,))
+                "La memoria ram del nodo {} es requerida y se esta " +
+                "desactivando su lectura".format(self.lan_dir))
 
         self._logger.info(
-            "%sctivando lectura de ram del nodo %s.",
-            ('A' if value else 'Desa'), str(self.lan_dir))
+            "{0}ctivando lectura de ram del nodo {1}.".format(
+                ('A' if value else 'Desa'), self.lan_dir))
 
         self._can_update.wait()
         if self._can_update.isSet():
@@ -395,20 +382,15 @@ class Node(object):
         :raise:
           TypeError: si el valor no es bool
         """
-        if type(value) is not bool:
-            self._logger.error(
-                "Parametro invalido para atributo enable_read_eeprom del " +
-                "nodo %s.", str(self.lan_dir))
-            raise TypeError
 
         if self.required_eeprom and not value:
             self._logger.warning(
-                "La eeprom del nodo %d es requerida y se esta desactivando "
-                "su lectura" % (self.lan_dir,))
+                "La eeprom del nodo {} es requerida y se esta desactivando "
+                "su lectura".format(self.lan_dir))
 
         self._logger.info(
-            "%sctivando lectura de eeprom del nodo %s.",
-            ('A' if value else 'Desa'), str(self.lan_dir))
+            "{0}ctivando lectura de eeprom del nodo {1}.".format(
+                ('A' if value else 'Desa'), self.lan_dir))
 
         self._can_update.wait()
         if self._can_update.isSet():
@@ -422,18 +404,14 @@ class Node(object):
         :raise:
           TypeError: si el valor no es int
         """
-        if any([type(a) != int for a in args]):
-            self._logger.error(
-                "Los valores para disable_eeprom_sector deben ser todos int.")
-            raise TypeError
 
         if any([a in self.required_eeprom_index for a in args]):
             self._logger.warning(
-                "Desactivando indices de eeprom del nodo %d indicados como " +
-                "requeridos" % (self.lan_dir,))
+                "Desactivando indices de eeprom del nodo {} indicados como " +
+                "requeridos".format(self.lan_dir))
         self._logger.info(
-            "Desactivando sectores de eeprom %s del nodo %s.",
-            str(args), str(self.lan_dir))
+            "Desactivando sectores de eeprom {0} del nodo {1}.".format(
+                str(args), self.lan_dir))
         self._can_update.wait()
         if self._can_update.isSet():
             self._can_update.clear()
@@ -448,14 +426,9 @@ class Node(object):
         :raise:
           TypeError: si el valor no es int
         """
-        if any([type(a) != int for a in args]):
-            self._logger.error(
-                "Los valores para enable_eeprom_sector deben ser todos int.")
-            raise TypeError
-
         self._logger.info(
-            "Activando sectores de eeprom %s del nodo %s.",
-            str(args), str(self.lan_dir))
+            "Activando sectores de eeprom {0} del nodo {1}.".format(
+                str(args), self.lan_dir))
         self._can_update.wait()
         if self._can_update.isSet():
             self._can_update.clear()
@@ -463,7 +436,8 @@ class Node(object):
                 try:
                     self.index_disabled_eeprom.remove(value)
                 except KeyError as e:
-                    self._logger.warning("El indice {} de la eeprom ya estaba activo.".format(value))
+                    self._logger.warning("El indice {} de la eeprom ya estaba activo.".format(
+                        value))
             self._can_update.set()
             self._update_to_read_eeprom()
 
@@ -473,18 +447,13 @@ class Node(object):
         :raise:
           TypeError: si el valor no es int
         """
-        if any([type(a) != int for a in args]):
-            self._logger.error(
-                "Los valores para disable_ram_sector deben ser todos int.")
-            raise TypeError
-
         if any([a in self.required_ram_index for a in args]):
             self._logger.warning(
-                "Desactivando indices de ram del nodo %d indicados como " +
-                "requeridos" % (self.lan_dir,))
+                "Desactivando indices de ram del nodo {} indicados como " +
+                "requeridos".format(self.lan_dir))
         self._logger.info(
-            "Desactivando sectores de ram %s del nodo %s.",
-            str(args), str(self.lan_dir))
+            "Desactivando sectores de ram {0} del nodo {1}.".format(
+                str(args), self.lan_dir))
         self._can_update.wait()
         if self._can_update.isSet():
             self._can_update.clear()
@@ -493,21 +462,16 @@ class Node(object):
             self._can_update.set()
             self._update_to_read_ram()
 
-
     def enable_ram_sector(self, *args):
         """
         :param value: ints
         :raise:
           TypeError: si el valor no es int
         """
-        if any([type(a) != int for a in args]):
-            self._logger.error(
-                "Los valores para enable_ram_sector deben ser todos int.")
-            raise TypeError
 
         self._logger.info(
-            "Activando sectores de ram %s del nodo %s.",
-            str(args), str(self.lan_dir))
+            "Activando sectores de ram {0} del nodo {1}.".format(
+                str(args), self.lan_dir))
         self._can_update.wait()
         if self._can_update.isSet():
             self._can_update.clear()
@@ -515,7 +479,9 @@ class Node(object):
                 try:
                     self.index_disabled_ram.remove(value)
                 except KeyError as e:
-                    self._logger.warning("El indice {} de la ram ya estaba activo.".format(value))
+                    self._logger.warning(
+                        "El indice {} de la ram ya estaba activo.".format(
+                            value))
             self._can_update.set()
             self._update_to_read_ram()
 
@@ -528,19 +494,13 @@ class Node(object):
           InactiveAppException: Si la aplicacion esta inactiva
           NodeNotExists: Si no se recibio respuesta del nodo
         """
-        if rta is not None:
-            if not isinstance(rta, Paquete) or rta.funcion != 0:
-                self._logger.error(
-                    "Error de validacion de datos de identify en el nodo %s.",
-                    str(self.lan_dir))
-                raise TypeError
 
-        self._logger.info("Identificando nodo %s.", str(self.lan_dir))
+        self._logger.info("Identificando nodo {}.".format(self.lan_dir))
         status = self.status
         try:
             if rta is None:
                 paq = Paquete(destino=self.lan_dir, funcion=0)
-                rta, _ = self.ser.send_paq(paq)
+                rta, _ = self._ser.send_paq(paq)
             self._can_update.wait()
             if self._can_update.isSet():
                 self._can_update.clear()
@@ -563,67 +523,66 @@ class Node(object):
                     if len(rta.datos[9:10]) else None
                 if len(rta.datos[3:4]):
                     servicio0 = struct.unpack('b', rta.datos[3:4])[0]
-                    self.servicios['0b7'] = {
+                    self._servicios['0b7'] = {
                         'estado': (servicio0 & 0b10000000) / 128,
                         'desc': 'Puede ser maestro.'}
-                    self.servicios['0b6'] = {
+                    self._servicios['0b6'] = {
                         'estado': (servicio0 & 0b01000000) / 64,
                         'desc': 'Tiene entradas analogicas de alta resolucion.'}
-                    self.servicios['0b5'] = {
+                    self._servicios['0b5'] = {
                         'estado': (servicio0 & 0b00100000) / 32,
                         'desc': 'Tiene entradas digitales o analogicas de baja resolucion.'}
-                    self.servicios['0b4'] = {
+                    self._servicios['0b4'] = {
                         'estado': (servicio0 & 0b00010000) / 16,
                         'desc': 'Tiene salidas analogicas o tipo PWM.'}
-                    self.servicios['0b3'] = {
+                    self._servicios['0b3'] = {
                         'estado': (servicio0 & 0b00001000) / 8,
                         'desc': 'Tiene salidas a rele o digitales a transistor.'}
-                    self.servicios['0b2'] = {
+                    self._servicios['0b2'] = {
                         'estado': (servicio0 & 0b00000100) / 4,
                         'desc': 'Tiene entradas de cuenta de alta velocidad.'}
-                    self.servicios['0b1'] = {
+                    self._servicios['0b1'] = {
                         'estado': (servicio0 & 0b00000010) / 2,
                         'desc': 'Tiene display y/o pulsadores.'}
-                    self.servicios['0b0'] = {
+                    self._servicios['0b0'] = {
                         'estado': (servicio0 & 0b00000001),
                         'desc': 'Tiene EEPROM.'}
                 if len(rta.datos[4:5]):
                     servicio1 = struct.unpack('b', rta.datos[4:5])[0]
                     self.puede_master = servicio1 & 0b10000000
                     self.tiene_eeprom = servicio1 & 0b00000001
-                    self.servicios['1b7'] = {
+                    self._servicios['1b7'] = {
                         'estado': (servicio1 & 0b10000000) / 128,
                         'desc': 'No implementado.'}
-                    self.servicios['1b6'] = {
+                    self._servicios['1b6'] = {
                         'estado': (servicio1 & 0b01000000) / 64,
                         'desc': 'No implementado.'}
-                    self.servicios['1b5'] = {
+                    self._servicios['1b5'] = {
                         'estado': (servicio1 & 0b00100000) / 32,
                         'desc': 'No implementado.'}
-                    self.servicios['1b4'] = {
+                    self._servicios['1b4'] = {
                         'estado': (servicio1 & 0b00010000) / 16,
                         'desc': 'No implementado.'}
-                    self.servicios['1b3'] = {
+                    self._servicios['1b3'] = {
                         'estado': (servicio1 & 0b00001000) / 8,
                         'desc': 'No implementado.'}
-                    self.servicios['1b2'] = {
+                    self._servicios['1b2'] = {
                         'estado': (servicio1 & 0b00000100) / 4,
                         'desc': 'No implementado.'}
-                    self.servicios['1b1'] = {
+                    self._servicios['1b1'] = {
                         'estado': (servicio1 & 0b00000010) / 2,
                         'desc': 'No implementado.'}
-                    self.servicios['1b0'] = {
+                    self._servicios['1b0'] = {
                         'estado': (servicio1 & 0b00000001),
                         'desc': 'No implementado.'}
                 status = 1
         except IndexError:
             self._logger.warning(
-                "Nodo %s posiblemente con una version vieja de software.",
-                str(self.lan_dir))
+                "Nodo {} posiblemente con una version vieja de software.".format(self.lan_dir))
             status = 1
         except (WriteException, ReadException) as e:
-            if self.ser.im_master:
-                self._logger.error("El nodo %s no existe.", str(self.lan_dir))
+            if self._ser.im_master:
+                self._logger.error("El nodo {} no existe.".format(self.lan_dir))
                 status = 3
                 raise NodeNotExists
         finally:
@@ -655,12 +614,12 @@ class Node(object):
             ReadException: Si no se pudo leer la respuesta del nodoself.
         """
 
-        self._logger.info("Ofreciendo token al nodo %s.", str(self.lan_dir))
+        self._logger.info("Ofreciendo token al nodo {}.".format(self.lan_dir))
         paq = Paquete(destino=self.lan_dir, funcion=7)
-        rta, _ = self.ser.send_paq(paq)
-        self.ser.check_master()
-        if self.ser.im_master:
-            self._logger.error("Error en traspaso de master al nodo %s.", str(self.lan_dir))
+        rta, _ = self._ser.send_paq(paq)
+        self._ser.check_master()
+        if self._ser.im_master:
+            self._logger.error("Error en traspaso de master al nodo {}.".format(self.lan_dir))
             raise TokenExeption
 
     def read_app_line(self, inicio, longitud):
@@ -677,13 +636,7 @@ class Node(object):
         """
 
         if not self.aplicacion_activa:
-            raise InactiveAppException #TODO:
-
-        if any([type(inicio) != int, type(longitud) != int]):
-            self._logger.error(
-                "Error de validacion de datos de read_app_line en el nodo %s.",
-                str(self.lan_dir))
-            raise TypeError
+            raise InactiveAppException
 
         paq = Paquete(
             destino=self.lan_dir,
@@ -691,9 +644,9 @@ class Node(object):
             datos=struct.pack('Hb', inicio, longitud)
         )
         self._logger.info(
-            "Leyendo linea del nodo %s, inicio %d, longitud %d.",
-            str(self.lan_dir), inicio, longitud)
-        rta, _ = self.ser.send_paq(paq)
+            "Leyendo linea del nodo {0}, inicio {1}, longitud {2}.".format(
+                self.lan_dir), inicio, longitud)
+        rta, _ = self._ser.send_paq(paq)
         line = AppLine(inicio=inicio*2, paq=rta)
         return line
 
@@ -710,10 +663,10 @@ class Node(object):
             raise InactiveAppException
 
         self._logger.info(
-            "Desactivando aplicacion del nodo %s.", str(self.lan_dir))
+            "Desactivando aplicacion del nodo {}.".format(self.lan_dir))
         paq = Paquete(
             destino=self.lan_dir, funcion=6, datos=b'\x00\x01\xff\xff')
-        rta, _ = self.ser.send_paq(paq)
+        rta, _ = self._ser.send_paq(paq)
         if rta.datos != APP_DEACTIVATE_RESPONSE:
             raise ActiveAppException
         else:
@@ -738,8 +691,6 @@ class Node(object):
         # TODO: APP_INIT_CONFIG tiene que ir en el paquete de identificacion
         if self.aplicacion_activa:
             raise ActiveAppException
-        if not isinstance(line, AppLine):
-            raise TypeError
 
         if line.inicio < self.fnapp:
             sum_inicio = 0
@@ -750,13 +701,13 @@ class Node(object):
                     datos=struct.pack('H', line.inicio + sum_inicio) + part
                 )
                 sum_inicio += int(GRABA_MAX_BYTES/2)
-                rta, _ = self.ser.send_paq(paq)
+                rta, _ = self._ser.send_paq(paq)
         elif line.inicio > APP_INIT_E2:
             paq = Paquete(
                 destino=self.lan_dir,
                 funcion=4,
                 datos=(struct.pack('b', line.inicio - APP_INIT_CONFIG) + ''.join([line.datos[i] for i in range(len(line.datos)) if not i % 2])))
-            rta, _ = self.ser.send_paq(paq)
+            rta, _ = self._ser.send_paq(paq)
 
     def activate_app(self):
         """
@@ -771,10 +722,10 @@ class Node(object):
         if self.aplicacion_activa:
             raise ActiveAppException
         self._logger.info(
-            "Reactivando aplicacion del nodo %s.", str(self.lan_dir))
+            "Reactivando aplicacion del nodo {}.".format(self.lan_dir))
         paq = Paquete(
             destino=self.lan_dir, funcion=6, datos=b'\x00\x00\xa5\x05')
-        rta, _ = self.ser.send_paq(paq)
+        rta, _ = self._ser.send_paq(paq)
         if rta.datos != APP_ACTIVATE_RESPONSE:
             raise InactiveAppException
         else:
@@ -786,14 +737,6 @@ class Node(object):
         self.aplicacion_activa = bool(lab_gen.valor[0] & 0b10000000)
         self.solicitud_desactivacion = bool(lab_gen.valor[0] & 0b01000010)
         return (self.solicitud_desactivacion, self.aplicacion_activa)
-
-    def _send_sate(self):
-        msg = '{1}_{3}{0}{2}'.format(
-                COMMAND_SEPARATOR,
-                MSG_NODE_PREFIX,
-                self.report(),
-                self.lan_dir)
-        self.ser.connection_socket.send_string(msg)
 
     def _update_to_read_eeprom(self):
         self._can_update.wait()
@@ -861,16 +804,15 @@ class Node(object):
           ReadException: Si no se pudo leer la respuesta del nodo.
         """
 
-        if self.ser.im_master:
+        if self._ser.im_master:
             self._logger.debug(
-
-            "Leyendo memoria del nodo %s.", str(self.lan_dir))
+                "Leyendo memoria del nodo {}.".format(self.lan_dir))
             paq = Paquete(
                 destino=self.lan_dir,
                 funcion=MEMO_READ_NAMES[instance],
                 datos=struct.pack('2b', inicio, longitud)
             )
-            paq, _ = self.ser.send_paq(paq)
+            paq, _ = self._ser.send_paq(paq)
             timestamp = time.time()
             memo_instances = []
             if instance == 'RAM':
@@ -925,8 +867,8 @@ class Node(object):
         """
 
         self._logger.info(
-            "Escribiendo datos %s en nodo %s.", binascii.hexlify(datos),
-            str(self.lan_dir))
+            "Escribiendo datos {0} en nodo {1}.".format(
+                binascii.hexlify(datos), self.lan_dir))
         try:
             paq = Paquete(
                 destino=self.lan_dir,
@@ -935,7 +877,14 @@ class Node(object):
             )
         except struct.error:
             raise EncodeError
-        self.ser.send_paq(paq)
+        self._ser.send_paq(paq)
+
+    def __state__(self):
+        return '{1}_{3}{0}{2}'.format(
+                COMMAND_SEPARATOR,
+                MSG_NODE_PREFIX,
+                self.report(),
+                self.lan_dir)
 
     def report(self):
         return json.dumps({
@@ -966,6 +915,6 @@ class Node(object):
             'enabled_read_eeprom': self.enabled_read_eeprom,
             'enabled_read_eeprom_index': [i for i in range(self.eeprom_size+1) if i not in self.index_disabled_eeprom],
             'enabled_read_ram_index': [i for i in range(self.ram_read+1) if i not in self.index_disabled_ram],
-            'servicios': self.servicios,
+            'servicios': self._servicios,
             'time': time.time(),
         })

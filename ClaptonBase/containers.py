@@ -734,8 +734,8 @@ class Node(object):
 
     def check_app_state(self):
         lab_gen = self.read_ram(0, 1)[0]
-        self.aplicacion_activa = bool(lab_gen.valor[0] & 0b10000000)
-        self.solicitud_desactivacion = bool(lab_gen.valor[0] & 0b01000010)
+        self.aplicacion_activa = bool(lab_gen.get(0) & 0b10000000)
+        self.solicitud_desactivacion = bool(lab_gen.get(0) & 0b01000010)
         return (self.solicitud_desactivacion, self.aplicacion_activa)
 
     def _update_to_read_eeprom(self):
@@ -826,7 +826,7 @@ class Node(object):
                     tipo=instance,
                     indice=indice,
                     timestamp=timestamp,
-                    valor=paq.datos[k:k+1]
+                    valores=paq.datos[k:k+1]
                 )
                 if memo.tipo == 'RAM':
                     self.ram[indice] = memo

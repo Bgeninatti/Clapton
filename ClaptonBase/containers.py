@@ -500,7 +500,7 @@ class Node(object):
         try:
             if rta is None:
                 paq = Paquete(destino=self.lan_dir, funcion=0)
-                rta, _ = self._ser.send_paq(paq)
+                rta = self._ser.send_paq(paq)
             self._can_update.wait()
             if self._can_update.isSet():
                 self._can_update.clear()
@@ -616,7 +616,7 @@ class Node(object):
 
         self._logger.info("Ofreciendo token al nodo {}.".format(self.lan_dir))
         paq = Paquete(destino=self.lan_dir, funcion=7)
-        rta, _ = self._ser.send_paq(paq)
+        rta = self._ser.send_paq(paq)
         self._ser.check_master()
         if self._ser.im_master:
             self._logger.error("Error en traspaso de master al nodo {}.".format(self.lan_dir))
@@ -646,7 +646,7 @@ class Node(object):
         self._logger.info(
             "Leyendo linea del nodo {0}, inicio {1}, longitud {2}.".format(
                 self.lan_dir), inicio, longitud)
-        rta, _ = self._ser.send_paq(paq)
+        rta = self._ser.send_paq(paq)
         line = AppLine(inicio=inicio*2, paq=rta)
         return line
 
@@ -666,7 +666,7 @@ class Node(object):
             "Desactivando aplicacion del nodo {}.".format(self.lan_dir))
         paq = Paquete(
             destino=self.lan_dir, funcion=6, datos=b'\x00\x01\xff\xff')
-        rta, _ = self._ser.send_paq(paq)
+        rta = self._ser.send_paq(paq)
         if rta.datos != APP_DEACTIVATE_RESPONSE:
             raise ActiveAppException
         else:
@@ -701,13 +701,13 @@ class Node(object):
                     datos=struct.pack('H', line.inicio + sum_inicio) + part
                 )
                 sum_inicio += int(GRABA_MAX_BYTES/2)
-                rta, _ = self._ser.send_paq(paq)
+                rta = self._ser.send_paq(paq)
         elif line.inicio > APP_INIT_E2:
             paq = Paquete(
                 destino=self.lan_dir,
                 funcion=4,
                 datos=(struct.pack('b', line.inicio - APP_INIT_CONFIG) + ''.join([line.datos[i] for i in range(len(line.datos)) if not i % 2])))
-            rta, _ = self._ser.send_paq(paq)
+            rta = self._ser.send_paq(paq)
 
     def activate_app(self):
         """
@@ -725,7 +725,7 @@ class Node(object):
             "Reactivando aplicacion del nodo {}.".format(self.lan_dir))
         paq = Paquete(
             destino=self.lan_dir, funcion=6, datos=b'\x00\x00\xa5\x05')
-        rta, _ = self._ser.send_paq(paq)
+        rta = self._ser.send_paq(paq)
         if rta.datos != APP_ACTIVATE_RESPONSE:
             raise InactiveAppException
         else:
@@ -812,7 +812,7 @@ class Node(object):
                 funcion=MEMO_READ_NAMES[instance],
                 datos=struct.pack('2b', inicio, longitud)
             )
-            paq, _ = self._ser.send_paq(paq)
+            paq = self._ser.send_paq(paq)
             timestamp = time.time()
             memo_instances = []
             if instance == 'RAM':

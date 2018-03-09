@@ -4,7 +4,7 @@ import time
 import json
 import binascii
 import sys
-from threading import Event, Lock
+from bitarray import bitarray
 
 from .cfg import *
 from .consts import (LINE_REGEX, READ_FUNCTIONS, END_LINE, MEMO_NAMES,
@@ -247,19 +247,9 @@ class Node(object):
             status 3: No existe.
         """
         self._status = 0
-        self.im_master = is_master  # Rol del esclavo.
+        self.is_master = is_master  # Rol del esclavo.
         self.aplicacion_activa = True
         self.solicitud_desactivacion = False
-
-        self.eeprom = {}
-        self.eeprom_lock = Lock()
-        self.ram = {}
-        self.ram_lock = Lock()
-
-        # Bandera de uso interno para que no haya colicion en la actualizacion
-        # de los datos del master.
-        self._can_update = Event()
-        self._can_update.set()
 
         # Inicio con sizes estandar para poder usar hasta que el nodo sea
         # identificado.
@@ -271,9 +261,9 @@ class Node(object):
         self.ram_write = DEFAULT_RAM_WRITE
 
         # Banderas de lectura del nodo.
-        self._enabled_read_node = required
-        self._enabled_read_ram = required_ram
-        self._enabled_read_eeprom = required_eeprom
+        self.enabled_read_node = required
+        self.enabled_read_ram = required_ram
+        self.enabled_read_eeprom = required_eeprom
         self.index_disabled_ram = set()
         self.index_disabled_eeprom = set()
         self.to_read_ram = list()
@@ -307,96 +297,12 @@ class Node(object):
         :raise:
           TypeError: si el estado no es int
         """
-        self._can_update.wait()
-        if self._can_update.isSet():
-            # Actualizo el estado y renuevo timestamp si el estado es 1.
-            self._can_update.clear()
-            self._logger.debug(
-                "Reportando estado del nodo {}.".format(self.lan_dir))
-            self._status = value
-            if value == 1:
-                self.last_seen = time.time()
-            self._can_update.set()
-
-    @property
-    def enabled_read_node(self):
-        return self._enabled_read_node
-
-    @enabled_read_node.setter
-    def enabled_read_node(self, value):
-        """
-        :param value: int
-        :raise:
-          TypeError: si el valor no es bool
-        """
-
-        if self.required and not value:
-            self._logger.warning(
-                "El nodo {} es requerido y se esta desactivando su lectura".format(self.lan_dir))
-
-        self._logger.info(
-            "{0}ctivando lectura del nodo {1}.".format(
-                ('A' if value else 'Desa'),
-                self.lan_dir))
-
-        self._can_update.wait()
-        if self._can_update.isSet():
-            self._can_update.clear()
-            self._enabled_read_node = value
-            self._can_update.set()
-
-    @property
-    def enabled_read_ram(self):
-        return self._enabled_read_ram
-
-    @enabled_read_ram.setter
-    def enabled_read_ram(self, value):
-        """
-        :param value: int
-        :raise:
-          TypeError: si el valor no es bool
-        """
-        if self.required_ram and not value:
-            self._logger.warning(
-                "La memoria ram del nodo {} es requerida y se esta " +
-                "desactivando su lectura".format(self.lan_dir))
-
-        self._logger.info(
-            "{0}ctivando lectura de ram del nodo {1}.".format(
-                ('A' if value else 'Desa'), self.lan_dir))
-
-        self._can_update.wait()
-        if self._can_update.isSet():
-            self._can_update.clear()
-            self._enabled_read_ram = value
-            self._can_update.set()
-
-    @property
-    def enabled_read_eeprom(self):
-        return self._enabled_read_eeprom
-
-    @enabled_read_eeprom.setter
-    def enabled_read_eeprom(self, value):
-        """
-        :param value: int
-        :raise:
-          TypeError: si el valor no es bool
-        """
-
-        if self.required_eeprom and not value:
-            self._logger.warning(
-                "La eeprom del nodo {} es requerida y se esta desactivando "
-                "su lectura".format(self.lan_dir))
-
-        self._logger.info(
-            "{0}ctivando lectura de eeprom del nodo {1}.".format(
-                ('A' if value else 'Desa'), self.lan_dir))
-
-        self._can_update.wait()
-        if self._can_update.isSet():
-            self._can_update.clear()
-            self._enabled_read_eeprom = value
-            self._can_update.set()
+        # Actualizo el estado y renuevo timestamp si el estado es 1.
+        self._logger.debug(
+            "Reportando estado del nodo {}.".format(self.lan_dir))
+        self._status = value
+        if value == 1:
+            self.last_seen = time.time()
 
     def disable_eeprom_sector(self, *args):
         """
@@ -404,21 +310,12 @@ class Node(object):
         :raise:
           TypeError: si el valor no es int
         """
-
-        if any([a in self.required_eeprom_index for a in args]):
-            self._logger.warning(
-                "Desactivando indices de eeprom del nodo {} indicados como " +
-                "requeridos".format(self.lan_dir))
         self._logger.info(
             "Desactivando sectores de eeprom {0} del nodo {1}.".format(
                 str(args), self.lan_dir))
-        self._can_update.wait()
-        if self._can_update.isSet():
-            self._can_update.clear()
-            for value in args:
-                self.index_disabled_eeprom.add(value)
-            self._can_update.set()
-            self._update_to_read_eeprom()
+        for value in args:
+            self.index_disabled_eeprom.add(value)
+        self._update_to_read_eeprom()
 
     def enable_eeprom_sector(self, *args):
         """
@@ -429,17 +326,13 @@ class Node(object):
         self._logger.info(
             "Activando sectores de eeprom {0} del nodo {1}.".format(
                 str(args), self.lan_dir))
-        self._can_update.wait()
-        if self._can_update.isSet():
-            self._can_update.clear()
-            for value in args:
-                try:
-                    self.index_disabled_eeprom.remove(value)
-                except KeyError as e:
-                    self._logger.warning("El indice {} de la eeprom ya estaba activo.".format(
-                        value))
-            self._can_update.set()
-            self._update_to_read_eeprom()
+        for value in args:
+            try:
+                self.index_disabled_eeprom.remove(value)
+            except KeyError as e:
+                self._logger.warning("El indice {} de la eeprom ya estaba activo.".format(
+                    value))
+        self._update_to_read_eeprom()
 
     def disable_ram_sector(self, *args):
         """
@@ -447,20 +340,12 @@ class Node(object):
         :raise:
           TypeError: si el valor no es int
         """
-        if any([a in self.required_ram_index for a in args]):
-            self._logger.warning(
-                "Desactivando indices de ram del nodo {} indicados como " +
-                "requeridos".format(self.lan_dir))
         self._logger.info(
             "Desactivando sectores de ram {0} del nodo {1}.".format(
                 str(args), self.lan_dir))
-        self._can_update.wait()
-        if self._can_update.isSet():
-            self._can_update.clear()
-            for value in args:
-                self.index_disabled_ram.add(value)
-            self._can_update.set()
-            self._update_to_read_ram()
+        for value in args:
+            self.index_disabled_ram.add(value)
+        self._update_to_read_ram()
 
     def enable_ram_sector(self, *args):
         """
@@ -472,18 +357,13 @@ class Node(object):
         self._logger.info(
             "Activando sectores de ram {0} del nodo {1}.".format(
                 str(args), self.lan_dir))
-        self._can_update.wait()
-        if self._can_update.isSet():
-            self._can_update.clear()
-            for value in args:
-                try:
-                    self.index_disabled_ram.remove(value)
-                except KeyError as e:
-                    self._logger.warning(
-                        "El indice {} de la ram ya estaba activo.".format(
-                            value))
-            self._can_update.set()
-            self._update_to_read_ram()
+        for value in args:
+            try:
+                self.index_disabled_ram.remove(value)
+            except KeyError as e:
+                self._logger.warning(
+                    "El indice {} de la ram ya estaba activo.".format(value))
+        self._update_to_read_ram()
 
     def identify(self, rta=None):
         """
@@ -501,81 +381,51 @@ class Node(object):
             if rta is None:
                 paq = Paquete(destino=self.lan_dir, funcion=0)
                 rta = self._ser.send_paq(paq)
-            self._can_update.wait()
-            if self._can_update.isSet():
-                self._can_update.clear()
-                self.fnapp = struct.unpack(
-                    'b', rta.datos[0:1])[0] * 256 + 255 \
-                    if len(rta.datos[0:1]) else None
-                self.initapp = struct.unpack('b', rta.datos[1:2])[0] * 256 \
-                    if len(rta.datos[1:2]) else None
-                self.eeprom_size = struct.unpack('b', rta.datos[2:3])[0] * 64 \
-                    if len(rta.datos[2:3]) else DEFAULT_EEPROM
-                self.buffer = struct.unpack('b', rta.datos[5:6])[0] \
-                    if len(rta.datos[5:6]) else DEFAULT_BUFFER
-                self.ram_write = struct.unpack('b', rta.datos[6:7])[0] \
-                    if len(rta.datos[6:7]) else DEFAULT_RAM_WRITE
-                self.ram_read = struct.unpack('b', rta.datos[7:8])[0] \
-                    if len(rta.datos[7:8]) else DEFAULT_RAM_READ
-                self.ini_config = struct.unpack('b', rta.datos[8:9])[0] \
-                    if len(rta.datos[8:9]) else None
-                self.ini_eeprom = struct.unpack('b', rta.datos[9:10])[0] \
-                    if len(rta.datos[9:10]) else None
-                if len(rta.datos[3:4]):
-                    servicio0 = struct.unpack('b', rta.datos[3:4])[0]
-                    self._servicios['0b7'] = {
-                        'estado': (servicio0 & 0b10000000) / 128,
-                        'desc': 'Puede ser maestro.'}
-                    self._servicios['0b6'] = {
-                        'estado': (servicio0 & 0b01000000) / 64,
-                        'desc': 'Tiene entradas analogicas de alta resolucion.'}
-                    self._servicios['0b5'] = {
-                        'estado': (servicio0 & 0b00100000) / 32,
-                        'desc': 'Tiene entradas digitales o analogicas de baja resolucion.'}
-                    self._servicios['0b4'] = {
-                        'estado': (servicio0 & 0b00010000) / 16,
-                        'desc': 'Tiene salidas analogicas o tipo PWM.'}
-                    self._servicios['0b3'] = {
-                        'estado': (servicio0 & 0b00001000) / 8,
-                        'desc': 'Tiene salidas a rele o digitales a transistor.'}
-                    self._servicios['0b2'] = {
-                        'estado': (servicio0 & 0b00000100) / 4,
-                        'desc': 'Tiene entradas de cuenta de alta velocidad.'}
-                    self._servicios['0b1'] = {
-                        'estado': (servicio0 & 0b00000010) / 2,
-                        'desc': 'Tiene display y/o pulsadores.'}
-                    self._servicios['0b0'] = {
-                        'estado': (servicio0 & 0b00000001),
-                        'desc': 'Tiene EEPROM.'}
-                if len(rta.datos[4:5]):
-                    servicio1 = struct.unpack('b', rta.datos[4:5])[0]
-                    self.puede_master = servicio1 & 0b10000000
-                    self.tiene_eeprom = servicio1 & 0b00000001
-                    self._servicios['1b7'] = {
-                        'estado': (servicio1 & 0b10000000) / 128,
-                        'desc': 'No implementado.'}
-                    self._servicios['1b6'] = {
-                        'estado': (servicio1 & 0b01000000) / 64,
-                        'desc': 'No implementado.'}
-                    self._servicios['1b5'] = {
-                        'estado': (servicio1 & 0b00100000) / 32,
-                        'desc': 'No implementado.'}
-                    self._servicios['1b4'] = {
-                        'estado': (servicio1 & 0b00010000) / 16,
-                        'desc': 'No implementado.'}
-                    self._servicios['1b3'] = {
-                        'estado': (servicio1 & 0b00001000) / 8,
-                        'desc': 'No implementado.'}
-                    self._servicios['1b2'] = {
-                        'estado': (servicio1 & 0b00000100) / 4,
-                        'desc': 'No implementado.'}
-                    self._servicios['1b1'] = {
-                        'estado': (servicio1 & 0b00000010) / 2,
-                        'desc': 'No implementado.'}
-                    self._servicios['1b0'] = {
-                        'estado': (servicio1 & 0b00000001),
-                        'desc': 'No implementado.'}
-                status = 1
+            self.fnapp = struct.unpack(
+                'b', rta.datos[0:1])[0] * 256 + 255 \
+                if len(rta.datos[0:1]) else None
+            self.initapp = struct.unpack('b', rta.datos[1:2])[0] * 256 \
+                if len(rta.datos[1:2]) else None
+            self.eeprom_size = struct.unpack('b', rta.datos[2:3])[0] * 64 \
+                if len(rta.datos[2:3]) else DEFAULT_EEPROM
+            self.buffer = struct.unpack('b', rta.datos[5:6])[0] \
+                if len(rta.datos[5:6]) else DEFAULT_BUFFER
+            self.ram_write = struct.unpack('b', rta.datos[6:7])[0] \
+                if len(rta.datos[6:7]) else DEFAULT_RAM_WRITE
+            self.ram_read = struct.unpack('b', rta.datos[7:8])[0] \
+                if len(rta.datos[7:8]) else DEFAULT_RAM_READ
+            self.ini_config = struct.unpack('b', rta.datos[8:9])[0] \
+                if len(rta.datos[8:9]) else None
+            self.ini_eeprom = struct.unpack('b', rta.datos[9:10])[0] \
+                if len(rta.datos[9:10]) else None
+            if len(rta.datos[3:5]):
+                servicios = bitarray()
+                servicios.frombytes(rta.datos[3:5])
+                self._servicios['0b7'] = {
+                    'estado': servicios[0],
+                    'desc': 'Puede ser maestro.'}
+                self._servicios['0b6'] = {
+                    'estado': servicios[1],
+                    'desc': 'Tiene entradas analogicas de alta resolucion.'}
+                self._servicios['0b5'] = {
+                    'estado': servicios[2],
+                    'desc': 'Tiene entradas digitales o analogicas de baja resolucion.'}
+                self._servicios['0b4'] = {
+                    'estado': servicios[3],
+                    'desc': 'Tiene salidas analogicas o tipo PWM.'}
+                self._servicios['0b3'] = {
+                    'estado': servicios[4],
+                    'desc': 'Tiene salidas a rele o digitales a transistor.'}
+                    'desc': 'Tiene entradas de cuenta de alta velocidad.'}
+                self._servicios['0b1'] = {
+                    'estado': servicios[6],
+                    'desc': 'Tiene display y/o pulsadores.'}
+                self._servicios['0b0'] = {
+                    'estado': servicios[7],
+                    'desc': 'Tiene EEPROM.'}
+                self.puede_master = servicios[8]
+                self.tiene_eeprom = servicios[15]
+           status = 1
         except IndexError:
             self._logger.warning(
                 "Nodo {} posiblemente con una version vieja de software.".format(self.lan_dir))
@@ -586,7 +436,6 @@ class Node(object):
                 status = 3
                 raise NodeNotExists
         finally:
-            self._can_update.set()
             self.status = status
         self._update_to_read_eeprom()
         self._update_to_read_ram()
@@ -733,61 +582,54 @@ class Node(object):
             return self.aplicacion_activa
 
     def check_app_state(self):
-        lab_gen = self.read_ram(0, 1)[0]
-        self.aplicacion_activa = bool(lab_gen.get(0) & 0b10000000)
-        self.solicitud_desactivacion = bool(lab_gen.get(0) & 0b01000010)
+        lab_gen = bitarray()
+        lab_gen.frombyte(self.read_ram(0, 1).datos)
+        self.aplicacion_activa = lab_gen[0]
+        self.solicitud_desactivacion = lab_gen[6]
         return (self.solicitud_desactivacion, self.aplicacion_activa)
 
     def _update_to_read_eeprom(self):
-        self._can_update.wait()
-        if self._can_update.isSet():
-            self._can_update.clear()
-            to_read = [i for i in range(int(self.eeprom_size + 1)) if i not in self.index_disabled_eeprom]
-            if len(to_read):
-                start = min(to_read)
-                last_in_paq = None
-                to_read_eeprom = list()
-                for i in to_read:
-                    if i >= start + self.buffer:
-                        size = 1 if last_in_paq < start else \
-                            last_in_paq - start + 1
-                        to_read_eeprom.append((size, start))
-                        start = i
-                    else:
-                        last_in_paq = i
-                if len(to_read_eeprom) > 0 and start != to_read_eeprom[-1][1]:
-                    to_read_eeprom.append((last_in_paq - start if last_in_paq > start else 1, start))
-                if not len(to_read_eeprom):
-                    to_read_eeprom.append(((max(to_read) - min(to_read)), min(to_read)))
-            else:
-                to_read_eeprom = []
-            self.to_read_eeprom = to_read_eeprom
-            self._can_update.set()
+        to_read = [i for i in range(int(self.eeprom_size + 1)) if i not in self.index_disabled_eeprom]
+        if len(to_read):
+            start = min(to_read)
+            last_in_paq = None
+            to_read_eeprom = list()
+            for i in to_read:
+                if i >= start + self.buffer:
+                    size = 1 if last_in_paq < start else \
+                        last_in_paq - start + 1
+                    to_read_eeprom.append((size, start))
+                    start = i
+                else:
+                    last_in_paq = i
+            if len(to_read_eeprom) > 0 and start != to_read_eeprom[-1][1]:
+                to_read_eeprom.append((last_in_paq - start if last_in_paq > start else 1, start))
+            if not len(to_read_eeprom):
+                to_read_eeprom.append(((max(to_read) - min(to_read)), min(to_read)))
+        else:
+            to_read_eeprom = []
+        self.to_read_eeprom = to_read_eeprom
 
     def _update_to_read_ram(self):
-        self._can_update.wait()
-        if self._can_update.isSet():
-            self._can_update.clear()
-            to_read = [i for i in range(int(self.ram_read + 1)) if i not in self.index_disabled_ram]
-            if len(to_read):
-                start = min(to_read)
-                last_in_paq = None
-                to_read_ram = list()
-                for i in to_read:
-                    if i >= start + self.buffer:
-                        size = 1 if last_in_paq < start else last_in_paq - start + 1
-                        to_read_ram.append((size, start))
-                        start = i
-                    else:
-                        last_in_paq = i
-                if len(to_read_ram) > 0 and start != to_read_ram[-1][1]:
-                    to_read_ram.append((last_in_paq - start if last_in_paq > start else 1, start))
-                if not len(to_read_ram):
-                    to_read_ram.append(((max(to_read) - min(to_read)), min(to_read)))
-            else:
-                to_read_ram = []
-            self.to_read_ram = to_read_ram
-            self._can_update.set()
+        to_read = [i for i in range(int(self.ram_read + 1)) if i not in self.index_disabled_ram]
+        if len(to_read):
+            start = min(to_read)
+            last_in_paq = None
+            to_read_ram = list()
+            for i in to_read:
+                if i >= start + self.buffer:
+                    size = 1 if last_in_paq < start else last_in_paq - start + 1
+                    to_read_ram.append((size, start))
+                    start = i
+                else:
+                    last_in_paq = i
+            if len(to_read_ram) > 0 and start != to_read_ram[-1][1]:
+                to_read_ram.append((last_in_paq - start if last_in_paq > start else 1, start))
+            if not len(to_read_ram):
+                to_read_ram.append(((max(to_read) - min(to_read)), min(to_read)))
+        else:
+            to_read_ram = []
+        self.to_read_ram = to_read_ram
 
     def _read_memo(self, inicio, longitud, instance):
         """
@@ -804,7 +646,6 @@ class Node(object):
           ReadException: Si no se pudo leer la respuesta del nodo.
         """
 
-        if self._ser.im_master:
             self._logger.debug(
                 "Leyendo memoria del nodo {}.".format(self.lan_dir))
             paq = Paquete(
@@ -812,44 +653,13 @@ class Node(object):
                 funcion=MEMO_READ_NAMES[instance],
                 datos=struct.pack('2b', inicio, longitud)
             )
-            paq = self._ser.send_paq(paq)
-            timestamp = time.time()
-            memo_instances = []
-            if instance == 'RAM':
-                self.ram_lock.acquire()
-            elif instance == 'EEPROM':
-                self.eeprom_lock.acquire()
-            for k, v in enumerate(paq.datos):
-                indice = inicio + k
-                memo = MemoInstance(
-                    nodo=self.lan_dir,
-                    tipo=instance,
-                    inicio=indice,
-                    timestamp=timestamp,
-                    valores=paq.datos[k:k+1]
-                )
-                if memo.tipo == 'RAM':
-                    self.ram[indice] = memo
-                elif memo.tipo == 'EEPROM':
-                    self.eeprom[indice] = memo
-                memo_instances.append(memo)
-            if instance == 'RAM':
-                self.ram_lock.release()
-            elif instance == 'EEPROM':
-                self.eeprom_lock.release()
-        else:
-            memo_instances = []
-            if instance == 'RAM':
-                self.ram_lock.acquire()
-                for i in range(inicio, inicio + longitud + 1):
-                    memo_instances.append(self.ram[i])
-                self.ram_lock.release()
-            elif instance == 'EEPROM':
-                self.eeprom_lock.acquire()
-                for i in range(inicio, inicio + longitud + 1):
-                    memo_instances.append(self.eeprom[i])
-                self.eeprom_lock.release()
-        return memo_instances
+            rta = self._ser.send_paq(paq)
+            return MemoInstance(
+                nodo=rta.origen,
+                tipo=MEMO_READ_NAMES[instance],
+                inicio=inicio,
+                timestamp=time.time(),
+                valores=rta.datos)
 
     def _write_memo(self, inicio, datos, instance):
         """
@@ -890,7 +700,7 @@ class Node(object):
         return json.dumps({
             'lan_dir': self.lan_dir,
             'status': self.status,
-            'im_master': self.im_master,
+            'is_master': self.is_master,
             'enabled_read_node': self.enabled_read_node,
             'enabled_read_ram':  self.enabled_read_ram,
             'enabled_read_eeprom': self.enabled_read_eeprom,
@@ -909,7 +719,7 @@ class Node(object):
             'initapp': self.initapp,
             'fnapp': self.fnapp,
             'eeprom_size': self.eeprom_size,
-            'im_master': self.im_master,
+            'is_master': self.is_master,
             'enabled_read_node': self.enabled_read_node,
             'enabled_read_ram':  self.enabled_read_ram,
             'enabled_read_eeprom': self.enabled_read_eeprom,

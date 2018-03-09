@@ -8,6 +8,6 @@ setup(
     author_email='bruno@teknotrol.com',
     packages=['ClaptonBase',],
     test_suite='tests',
-    install_requires=['pyserial'],
+    install_requires=['pyserial', 'bitarray'],
     scripts=["bin/grabar_programa", "bin/leer_programa"],
 )

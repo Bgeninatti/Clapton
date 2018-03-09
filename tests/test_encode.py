@@ -1,8 +1,8 @@
-import unittest2
+import unittest
 from ClaptonBase import encode
 from ClaptonBase.exceptions import EncodeError
 
-class EncodeTestCase(unittest2.TestCase):
+class EncodeTestCase(unittest.TestCase):
 
     def test_fuen_des_ok(self):
         self.assertEqual(encode.fuen_des(15, 15), b'\xff')

@@ -3,7 +3,6 @@ from ClaptonBase.serial_instance import SerialInterface
 from ClaptonBase.exceptions import SerialConfigError, NoMasterException, \
     ReadException, WriteException
 from ClaptonBase.containers import Paquete
-from ClaptonBase.cfg import INSTANT_RECONECT_TRIES
 
 
 class SerialInstanceTestCase(unittest.TestCase):

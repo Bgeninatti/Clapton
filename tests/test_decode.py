@@ -1,9 +1,9 @@
-import unittest2
+import unittest
 from ClaptonBase import decode
 from ClaptonBase.exceptions import DecodeError
 
 
-class DecodeTestCase(unittest2.TestCase):
+class DecodeTestCase(unittest.TestCase):
 
     def test_fuen_des_ok(self):
         self.assertIsInstance(decode.fuen_des(b'\xff'), tuple)

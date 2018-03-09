@@ -1,11 +1,11 @@
-import unittest2
+import unittest
 from ClaptonBase.serial_instance import SerialInterface
 from ClaptonBase.containers import Paquete, Node, MemoInstance
 from ClaptonBase.exceptions import ChecksumException, PaqException, \
     InactiveAppException, EncodeError
 
 
-class PaqueteTestCase(unittest2.TestCase):
+class PaqueteTestCase(unittest.TestCase):
 
     def test_ok(self):
         self.assertIsInstance(Paquete(destino=1, funcion=2, datos=b'\x00\xff'), Paquete)
@@ -32,7 +32,7 @@ class PaqueteTestCase(unittest2.TestCase):
 
     def test_validate_fun(self):
         with self.assertRaises(PaqException):
-            p = Paquete(destino=1, funcion=7)
+            Paquete(destino=1, funcion=7)
 
     def test_validate_fun_identify(self):
         with self.assertRaises(PaqException):
@@ -59,7 +59,7 @@ class PaqueteTestCase(unittest2.TestCase):
             Paquete(destino=1, funcion=6)
 
 
-class NodeTestCase(unittest2.TestCase):
+class NodeTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -196,7 +196,7 @@ class NodeTestCase(unittest2.TestCase):
         with self.assertRaises(InactiveAppException):
             n = Node(1, self.ser)
             n.aplicacion_activa = False
-            memos = n._read_memo(0, 5, 'RAM')
+            n._read_memo(0, 5, 'RAM')
 
     def test_read_memo_write_exception(self):
         pass

@@ -3,17 +3,16 @@ import math
 import time
 import json
 import binascii
-import sys
 from bitarray import bitarray
 
 from .cfg import *
-from .consts import (LINE_REGEX, READ_FUNCTIONS, END_LINE, MEMO_NAMES,
-                     APP_ACTIVATE_RESPONSE, APP_DEACTIVATE_RESPONSE,
-                     WRITE_FUNCTIONS, MEMO_WRITE_NAMES, MEMO_READ_NAMES)
+from .consts import (LINE_REGEX, READ_FUNCTIONS, APP_ACTIVATE_RESPONSE,
+                     APP_DEACTIVATE_RESPONSE, WRITE_FUNCTIONS,
+                     MEMO_WRITE_NAMES, MEMO_READ_NAMES)
 from . import encode, decode
 from .exceptions import ChecksumException, WriteException, ReadException, \
     TokenExeption, NodeNotExists, InactiveAppException, ActiveAppException, \
-    PaqException, BadLineException, DecodeError
+    PaqException, BadLineException
 from .utils import get_logger
 
 
@@ -585,7 +584,7 @@ class Node(object):
 
     def check_app_state(self):
         lab_gen = bitarray()
-        lab_gen.frombyte(self.read_ram(0, 1).datos)
+        lab_gen.frombytes(self.read_ram(0, 1).datos)
         self.aplicacion_activa = lab_gen[0]
         self.solicitud_desactivacion = lab_gen[6]
         return (self.solicitud_desactivacion, self.aplicacion_activa)

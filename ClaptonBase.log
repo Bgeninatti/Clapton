@@ -354,3 +354,30 @@
 2018-03-07 12:29:42,440 - 13176/MainThread - ClaptonBase.serial_instance:serial_instance.__init__ [INFO] Iniciando SerialInstance.
 2018-03-07 12:29:50,512 - 13176/Thread-146 - ClaptonBase.serial_instance:serial_instance._connection [INFO] Iniciando ConnectionThread.
 2018-03-07 12:29:50,512 - 13176/Thread-146 - ClaptonBase.serial_instance:serial_instance._do_connect [ERROR] Error intentando abrir el puerto serie: [Errno 2] could not open port /dev/ttyAMA0: [Errno 2] No such file or directory: '/dev/ttyAMA0'
+2018-03-09 12:37:29,028 - 17546/MainThread - ClaptonBase.serial_instance:serial_instance.__init__ [INFO] Iniciando SerialInstance.
+2018-03-09 12:37:29,068 - 17546/Thread-1 - ClaptonBase.serial_instance:serial_instance._connection [INFO] Iniciando ConnectionThread.
+2018-03-09 12:37:29,069 - 17546/MainThread - ClaptonBase.serial_instance:serial_instance.stop [INFO] Parando SerialInstance.
+2018-03-09 12:37:29,069 - 17546/Thread-1 - ClaptonBase.serial_instance:serial_instance._do_connect [ERROR] Error intentando abrir el puerto serie: [Errno 2] could not open port /dev/ttyAMA0: [Errno 2] No such file or directory: '/dev/ttyAMA0'
+2018-03-09 12:37:29,122 - 17546/MainThread - ClaptonBase.serial_instance:serial_instance.__init__ [INFO] Iniciando SerialInstance.
+2018-03-09 12:37:29,123 - 17546/MainThread - ClaptonBase.serial_instance:serial_instance._do_connect [ERROR] Error intentando abrir el puerto serie: [Errno 2] could not open port /dev/ttyAMA0: [Errno 2] No such file or directory: '/dev/ttyAMA0'
+2018-03-09 12:37:29,124 - 17546/MainThread - ClaptonBase.serial_instance:serial_instance.__init__ [INFO] Iniciando SerialInstance.
+2018-03-09 12:37:29,124 - 17546/MainThread - ClaptonBase.serial_instance:serial_instance._do_connect [ERROR] Error intentando abrir el puerto serie: [Errno 2] could not open port puerto: [Errno 2] No such file or directory: 'puerto'
+2018-03-09 12:37:29,125 - 17546/MainThread - ClaptonBase.serial_instance:serial_instance.stop [INFO] Parando SerialInstance.
+2018-03-09 12:37:38,028 - 17556/MainThread - ClaptonBase.serial_instance:serial_instance.__init__ [INFO] Iniciando SerialInstance.
+2018-03-09 12:37:38,029 - 17556/Thread-1 - ClaptonBase.serial_instance:serial_instance._connection [INFO] Iniciando ConnectionThread.
+2018-03-09 12:37:38,029 - 17556/MainThread - ClaptonBase.serial_instance:serial_instance.stop [INFO] Parando SerialInstance.
+2018-03-09 12:37:38,029 - 17556/Thread-1 - ClaptonBase.serial_instance:serial_instance._do_connect [ERROR] Error intentando abrir el puerto serie: [Errno 2] could not open port /dev/ttyAMA0: [Errno 2] No such file or directory: '/dev/ttyAMA0'
+2018-03-09 12:37:38,030 - 17556/MainThread - ClaptonBase.serial_instance:serial_instance.__init__ [INFO] Iniciando SerialInstance.
+2018-03-09 12:37:38,031 - 17556/MainThread - ClaptonBase.serial_instance:serial_instance._do_connect [ERROR] Error intentando abrir el puerto serie: [Errno 2] could not open port /dev/ttyAMA0: [Errno 2] No such file or directory: '/dev/ttyAMA0'
+2018-03-09 12:37:38,031 - 17556/MainThread - ClaptonBase.serial_instance:serial_instance.__init__ [INFO] Iniciando SerialInstance.
+2018-03-09 12:37:38,031 - 17556/MainThread - ClaptonBase.serial_instance:serial_instance._do_connect [ERROR] Error intentando abrir el puerto serie: [Errno 2] could not open port puerto: [Errno 2] No such file or directory: 'puerto'
+2018-03-09 12:37:38,031 - 17556/MainThread - ClaptonBase.serial_instance:serial_instance.stop [INFO] Parando SerialInstance.
+2018-03-09 12:38:00,065 - 17604/MainThread - ClaptonBase.serial_instance:serial_instance.__init__ [INFO] Iniciando SerialInstance.
+2018-03-09 12:38:00,065 - 17604/Thread-1 - ClaptonBase.serial_instance:serial_instance._connection [INFO] Iniciando ConnectionThread.
+2018-03-09 12:38:00,065 - 17604/MainThread - ClaptonBase.serial_instance:serial_instance.stop [INFO] Parando SerialInstance.
+2018-03-09 12:38:00,065 - 17604/Thread-1 - ClaptonBase.serial_instance:serial_instance._do_connect [ERROR] Error intentando abrir el puerto serie: [Errno 2] could not open port /dev/ttyAMA0: [Errno 2] No such file or directory: '/dev/ttyAMA0'
+2018-03-09 12:38:00,067 - 17604/MainThread - ClaptonBase.serial_instance:serial_instance.__init__ [INFO] Iniciando SerialInstance.
+2018-03-09 12:38:00,067 - 17604/MainThread - ClaptonBase.serial_instance:serial_instance._do_connect [ERROR] Error intentando abrir el puerto serie: [Errno 2] could not open port /dev/ttyAMA0: [Errno 2] No such file or directory: '/dev/ttyAMA0'
+2018-03-09 12:38:00,067 - 17604/MainThread - ClaptonBase.serial_instance:serial_instance.__init__ [INFO] Iniciando SerialInstance.
+2018-03-09 12:38:00,067 - 17604/MainThread - ClaptonBase.serial_instance:serial_instance._do_connect [ERROR] Error intentando abrir el puerto serie: [Errno 2] could not open port puerto: [Errno 2] No such file or directory: 'puerto'
+2018-03-09 12:38:00,067 - 17604/MainThread - ClaptonBase.serial_instance:serial_instance.stop [INFO] Parando SerialInstance.

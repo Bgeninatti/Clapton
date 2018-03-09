@@ -427,7 +427,7 @@ class Node(object):
                     'desc': 'Tiene EEPROM.'}
                 self.puede_master = servicios[8]
                 self.tiene_eeprom = servicios[15]
-           status = 1
+            status = 1
         except IndexError:
             self._logger.warning(
                 "Nodo {} posiblemente con una version vieja de software.".format(self.lan_dir))

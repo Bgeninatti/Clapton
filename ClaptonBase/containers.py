@@ -5,25 +5,28 @@ import json
 import binascii
 from bitarray import bitarray
 
-from .cfg import *
-from .consts import (LINE_REGEX, READ_FUNCTIONS, APP_ACTIVATE_RESPONSE,
-                     APP_DEACTIVATE_RESPONSE, WRITE_FUNCTIONS,
-                     MEMO_WRITE_NAMES, MEMO_READ_NAMES)
+from .cfg import (LINE_REGEX, READ_FUNCTIONS, WRITE_FUNCTIONS,
+                  APP_LINE_SIZE, DEFAULT_REQUIRED_NODE, DEFAULT_REQUIRED_RAM,
+                  DEFAULT_REQUIRED_EEPROM, DEFAULT_BUFFER, DEFAULT_EEPROM,
+                  DEFAULT_RAM_READ, DEFAULT_RAM_WRITE, COMMAND_SEPARATOR,
+                  APP_INIT_E2, APP_DEACTIVATE_RESPONSE, APP_ACTIVATE_RESPONSE,
+                  GRABA_MAX_BYTES, APP_INIT_CONFIG, MEMO_READ_NAMES,
+                  MEMO_WRITE_NAMES)
 from . import encode, decode
 from .exceptions import ChecksumException, WriteException, ReadException, \
     TokenExeption, NodeNotExists, InactiveAppException, ActiveAppException, \
-    PaqException, BadLineException
+    PaqException, BadLineException, EncodeError
 from .utils import get_logger
 
 
 class AppLine(object):
 
-    def __init__(self, **kwargs):
+    def __init__(self, line_regex=LINE_REGEX, **kwargs):
         line = kwargs.get('line', None)
         paq = kwargs.get('paq', None)
         inicio = kwargs.get('inicio', None)
         if line is not None:
-            line = LINE_REGEX.search(line)
+            line = line_regex.search(line)
             if line is not None:
                 line_parsed = line.groups()
             else:
@@ -689,26 +692,6 @@ class Node(object):
         except struct.error:
             raise EncodeError
         self._ser.send_paq(paq)
-
-    def __state__(self):
-        return '{1}_{3}{0}{2}'.format(
-                COMMAND_SEPARATOR,
-                MSG_NODE_PREFIX,
-                self.report(),
-                self.lan_dir)
-
-    def report(self):
-        return json.dumps({
-            'lan_dir': self.lan_dir,
-            'status': self.status,
-            'is_master': self.is_master,
-            'enabled_read_node': self.enabled_read_node,
-            'enabled_read_ram':  self.enabled_read_ram,
-            'enabled_read_eeprom': self.enabled_read_eeprom,
-            'enabled_read_eeprom_index': [i for i in range(self.eeprom_size+1) if i not in self.index_disabled_eeprom],
-            'enabled_read_ram_index': [i for i in range(self.ram_read+1) if i not in self.index_disabled_ram],
-            'time': time.time(),
-        })
 
     def __str__(self):
         return json.dumps({

@@ -6,7 +6,7 @@ try:
     from threading import _Event as Event
 except ImportError:
     from threading import Event
-from .cfg import *
+from .cfg import MASTER_EVENT_TIMEOUT
 
 
 def get_logger(logger_name, log_level=None, log_file=None, backup_count=1):

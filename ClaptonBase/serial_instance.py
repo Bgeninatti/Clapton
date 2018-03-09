@@ -1,25 +1,18 @@
 import time
-import zmq
 import serial
 import binascii
-from threading import Thread, Lock, Event
-from random import random
+from threading import Thread, Lock
 from . import decode
 from .exceptions import WriteException, ReadException, ChecksumException, \
     NoMasterException, SerialConfigError, NoSlaveException, DecodeError
 from .containers import Paquete
-from .cfg import *
-
-from .consts import (LINE_REGEX, READ_FUNCTIONS, END_LINE, MEMO_NAMES,
-                     APP_ACTIVATE_RESPONSE, APP_DEACTIVATE_RESPONSE,
-                     WRITE_FUNCTIONS, MEMO_WRITE_NAMES, MEMO_READ_NAMES)
+from .cfg import (DEFAULT_BAUDRATE, DEFAULT_LOG_LVL, DEFAULT_LOG_FILE)
 from .utils import get_logger, MasterEvent, GiveMasterEvent
 
 
 class SerialInterface(object):
     def __init__(self,
                  serial_port='/dev/ttyAMA0',
-                 conn_port=DEFAULT_CONN_PORT,
                  baudrate=DEFAULT_BAUDRATE,
                  timeout=DEFAULT_SERIAL_TIMEOUT,
                  log_level=DEFAULT_LOG_LVL,
@@ -74,25 +67,6 @@ class SerialInterface(object):
                 self._logger.error(
                     'Perdimos la conexion con el puerto serie. Reconectando...')
                 self._do_connect()
-
-    def notify_con_master(self, status=1):
-        """
-        :param status: Indica el estado de la conexion de puerto serie
-        :return: Nada, pero manda dos mensajes. Uno indicando la conexion
-        del puerto serie y el otro indicando la conexion
-        del master.
-        El formato de mensaje de la conexion del master es:  PREFIJO im_master
-        want_master give_master node
-        """
-        con_msg = "{1}{0}{2}".format(COMMAND_SEPARATOR, MSG_CON_PREFIX, status)
-        master_msg = '{1}{0}{2}{0}{3}{0}{4}'.format(
-                COMMAND_SEPARATOR,
-                MSG_MASTER_PREFIX,
-                int(self.im_master),
-                int(self.want_master.isSet()),
-                int(self.give_master.isSet()))
-        if self.give_master.isSet():
-            master_msg = '{1}{0}{2}'.format(msg, self.give_master.node)
 
     def send_paq(self, paq):
         """

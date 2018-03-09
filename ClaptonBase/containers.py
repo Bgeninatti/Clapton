@@ -416,6 +416,8 @@ class Node(object):
                 self._servicios['0b3'] = {
                     'estado': servicios[4],
                     'desc': 'Tiene salidas a rele o digitales a transistor.'}
+                self._servicios['0b2'] = {
+                    'estado': servicios[5],
                     'desc': 'Tiene entradas de cuenta de alta velocidad.'}
                 self._servicios['0b1'] = {
                     'estado': servicios[6],

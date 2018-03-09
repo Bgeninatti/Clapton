@@ -6,7 +6,8 @@ from . import decode
 from .exceptions import WriteException, ReadException, ChecksumException, \
     NoMasterException, SerialConfigError, NoSlaveException, DecodeError
 from .containers import Paquete
-from .cfg import (DEFAULT_BAUDRATE, DEFAULT_LOG_LVL, DEFAULT_LOG_FILE)
+from .cfg import (DEFAULT_BAUDRATE, DEFAULT_LOG_LVL, DEFAULT_LOG_FILE,
+                  DEFAULT_SERIAL_TIMEOUT, WAIT_MASTER_PERIOD)
 from .utils import get_logger, MasterEvent, GiveMasterEvent
 
 
@@ -97,7 +98,7 @@ class SerialInterface(object):
                         'No hay respuesta del echo en paquete para el nodo {}'.format(paq.destino))
                     raise ReadException
                 try:
-                    paq_echo = Paquete(paq=echo)
+                    Paquete(paq=echo)
                 except ChecksumException:
                     self._logger.error(
                         'No se resuelve checksum en echo para el nodo {}'.format(paq.destino))
@@ -171,7 +172,7 @@ class SerialInterface(object):
         token_rta = Paquete(
             origen=0, destino=origen, funcion=7)
         self._ser.write(token_rta.to_write)
-        echo = self._ser.read(len(token_rta.to_write))
+        self._ser.read(len(token_rta.to_write))
         rta = self._ser.read(token_rta.rta_size)
         self._logger.info(
             'Respuesta del master {}.'.format(binascii.hexlify(rta)))

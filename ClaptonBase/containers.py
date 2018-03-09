@@ -584,7 +584,7 @@ class Node(object):
 
     def check_app_state(self):
         lab_gen = bitarray()
-        lab_gen.frombytes(self.read_ram(0, 1).datos)
+        lab_gen.frombytes(self.read_ram(0, 1).get(0))
         self.aplicacion_activa = lab_gen[0]
         self.solicitud_desactivacion = lab_gen[6]
         return (self.solicitud_desactivacion, self.aplicacion_activa)

@@ -467,7 +467,7 @@ class Node(object):
 
         self._logger.info("Ofreciendo token al nodo {}.".format(self.lan_dir))
         paq = Paquete(destino=self.lan_dir, funcion=7)
-        rta = self._ser.send_paq(paq)
+        self._ser.send_paq(paq)
         self._ser.check_master()
         if self._ser.im_master:
             self._logger.error("Error en traspaso de master al nodo {}.".format(self.lan_dir))
@@ -552,13 +552,13 @@ class Node(object):
                     datos=struct.pack('H', line.inicio + sum_inicio) + part
                 )
                 sum_inicio += int(GRABA_MAX_BYTES/2)
-                rta = self._ser.send_paq(paq)
+                self._ser.send_paq(paq)
         elif line.inicio > APP_INIT_E2:
             paq = Paquete(
                 destino=self.lan_dir,
                 funcion=4,
                 datos=(struct.pack('b', line.inicio - APP_INIT_CONFIG) + ''.join([line.datos[i] for i in range(len(line.datos)) if not i % 2])))
-            rta = self._ser.send_paq(paq)
+            self._ser.send_paq(paq)
 
     def activate_app(self):
         """
@@ -648,20 +648,20 @@ class Node(object):
           ReadException: Si no se pudo leer la respuesta del nodo.
         """
 
-            self._logger.debug(
-                "Leyendo memoria del nodo {}.".format(self.lan_dir))
-            paq = Paquete(
-                destino=self.lan_dir,
-                funcion=MEMO_READ_NAMES[instance],
-                datos=struct.pack('2b', inicio, longitud)
-            )
-            rta = self._ser.send_paq(paq)
-            return MemoInstance(
-                nodo=rta.origen,
-                tipo=MEMO_READ_NAMES[instance],
-                inicio=inicio,
-                timestamp=time.time(),
-                valores=rta.datos)
+        self._logger.debug(
+            "Leyendo memoria del nodo {}.".format(self.lan_dir))
+        paq = Paquete(
+            destino=self.lan_dir,
+            funcion=MEMO_READ_NAMES[instance],
+            datos=struct.pack('2b', inicio, longitud)
+        )
+        rta = self._ser.send_paq(paq)
+        return MemoInstance(
+            nodo=rta.origen,
+            tipo=MEMO_READ_NAMES[instance],
+            inicio=inicio,
+            timestamp=time.time(),
+            valores=rta.datos)
 
     def _write_memo(self, inicio, datos, instance):
         """

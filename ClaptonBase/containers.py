@@ -174,7 +174,7 @@ class Paquete(object):
             inicio, longitud = struct.unpack('2b', self.datos)
             return 3 + longitud
         elif self.funcion == 2:
-            return 3
+            return 3 + self.longitud
         elif self.funcion == 4:
             return 3 + self.longitud
         elif self.funcion == 5:

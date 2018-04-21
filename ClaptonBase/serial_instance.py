@@ -1,27 +1,75 @@
+"""
+.. module:: serial
+    :platform: Unix
+    :synopsis: This module only provide the class :class:`SerialInterface`
+
+"""
+
 import time
-import serial
 import binascii
+import serial
 from threading import Thread, Lock
 from . import decode
 from .exceptions import WriteException, ReadException, ChecksumException, \
     NoMasterException, SerialConfigError, NoSlaveException, DecodeError
-from .containers import Paquete
+from .containers import Package
 from .cfg import (DEFAULT_BAUDRATE, DEFAULT_LOG_LVL, DEFAULT_LOG_FILE,
                   DEFAULT_SERIAL_TIMEOUT, WAIT_MASTER_PERIOD)
 from .utils import get_logger, MasterEvent, GiveMasterEvent
 
 
 class SerialInterface(object):
+    """
+    This class handle the comunication with the serial port.
+
+    The connection with the port is managed by this class in a independient
+    thread. In case that the connection was interrupted for some reason (for
+    example, you unplug the TKLan cable) the process in this thread will try
+    to reconnect and the pending operation with the port will be stoped until
+    the connection be restablished.
+
+    This class also provides functions to make the master interaction between nodes:
+
+    * :func:`acept_token`: to accept a token offer from a node.
+    * :func:`check_master`: to check if there's any master on the network or not. If not this means that you are master!
+    """
+
     def __init__(self,
                  serial_port='/dev/ttyAMA0',
                  baudrate=DEFAULT_BAUDRATE,
                  timeout=DEFAULT_SERIAL_TIMEOUT,
                  log_level=DEFAULT_LOG_LVL,
                  log_file=DEFAULT_LOG_FILE):
+        """
+        This class initialize with the information about
+        where connect (``serial_port``), at what speed (``baudrate``)
+        and how much have to wait if nobody is talking or theres no response
+        to your answer (``timeout``).
+
+        :param serial_port:The path to the serial port in the sistem. The
+            default value correspond to the Raspbian distribution for Raspberry Pi: ``/dev/ttyAMA0``
+        :type serial_port: str
+        :param baudrate: The baudrate int bits per second. The default is 2400,
+            the value used for most Teknotrol equpiments.
+        :type baudrate: int
+        :param timeout: The timeout of the serial port when there's no response
+        :type timeout: int | float
+        :param log_level: The log level for the logger according with the
+            :mod:`logging` python library
+        :type log_level: str
+        :param log_file: The file where the logs will be saved. The default
+            value is None, that means that the logs will be shown in the stdout.
+        :type log_file: str
+
+        .. note::
+            The default baudrate correspond with the equipments developed before
+            2018. From that time the baudrate also is 9600 for some equipments
+            like TKL693.
+
+        """
 
         self._logger = get_logger(__name__, log_level, log_file)
         self._logger.info("Iniciando SerialInstance.")
-
         self.using_ser = Lock()
         self._serial_port = serial_port
         self._baudrate = baudrate
@@ -40,10 +88,18 @@ class SerialInterface(object):
         self.give_master = GiveMasterEvent()
 
     def start(self):
+        """
+        Start te connection thread, wich means that connect and try
+        to mantain that connection in case that an exception ocurr.
+        """
         self._connection_thread.start()
         return self
 
     def stop(self):
+        """
+        Close the connection with the serial port and stop the connection
+        thread.
+        """
         self._logger.info("Parando SerialInstance.")
         self._stop = True
         self._connection_thread.join()
@@ -51,16 +107,25 @@ class SerialInterface(object):
         self._connection_thread = Thread(target=self._connection)
 
     def _do_connect(self):
+        """
+        Try to open the serial port and run :func:`check_master` to know wich
+        of the nodes is master or if you are the master.
+        """
         try:
             self._ser.open()
             self.check_master()
         except (serial.SerialException, OSError) as e:
             self._logger.error(
-                'Error intentando abrir el puerto serie: {}'.format(str(e)))
+                'Error intentando abrir el puerto serie: %s', str(e))
             raise SerialConfigError
         return self._ser.isOpen()
 
     def _connection(self):
+        """
+        This is the function that execute the `_connection_thread`. If the
+        port is not open, run _do_connect until we say it that stop (by
+        running the :fun:`stop`).
+        """
         self._logger.info("Iniciando ConnectionThread.")
         self._do_connect()
         while not self._stop:
@@ -69,138 +134,137 @@ class SerialInterface(object):
                     'Perdimos la conexion con el puerto serie. Reconectando...')
                 self._do_connect()
 
-    def send_paq(self, paq):
+    def get_package_from_length(self, length):
+        bytes_chain = self._ser.read(length)
+        if len(bytes_chain) < length:
+            self._logger.error('Se obtuvieron sólo %s bytes: %s', len(bytes_chain), bytes_chain.decode())
+            raise ReadException
+        try:
+            readed_package = Package(bytes_chain=bytes_chain)
+        except (ChecksumException, DecodeError) as e:
+            self._logger.error('No se obtuvo un paquete válido de %s bytes: %s', length, bytes_chain)
+            raise ReadException
+        return readed_package
+
+
+    def send_package(self, package):
         """
-        param paq: Paquete instance
-        return:
-            rta: Paquete con respuesta del nodo
-        raise:
-            NoMasterException
-            TypeError
-            ReadException
-            WriteException
+        In case that you where master (``im_master = True``) you are allowed to
+        send packages to another nodes with this function.
+        It took a :class:`Paquete`, send it throght the serial port and listen.
+        If everything goes well the first thing that show up as response is the package's
+        echo. Later, if the node in the package destination exists in the network, the response
+        should appear in the port. If not, once the `timeout` finish an `ReadException` raises.
+
+        :param package: The package that you want to send throght the serial port
+        :type package: :func:`Paquete`
+        :rtype: :func:`Paquete` with the response from the node
+
+        raises:
+            * NoMasterException: In case that you try to send a package but you
+                are not master.
+            * ReadException: In case that there's no echo response.
+            * WriteException: In case that the node don't answer.
         """
-        if not isinstance(paq, Paquete):
-            raise TypeError
         if not self.im_master:
             raise NoMasterException
         self._logger.debug("Esperando disponibilidad de puerto serie.")
-        if self._ser.isOpen():
-            self.using_ser.acquire()
+        with self.using_ser:
+            self._ser.flushInput()
+            self._logger.debug('Escribiendo: {}'.format(package.representation))
+            self._ser.write(package.to_write)
+            echo_package = self.get_package_from_length(len(package.bytes_chain))
             try:
-                self._ser.flushInput()
-                self._logger.debug('Escribiendo: {}'.format(paq.representation))
-                self._ser.write(paq.to_write)
-                echo = self._ser.read(len(paq.to_write))
-                self._logger.debug('ECHO: {}'.format(binascii.hexlify(echo)))
-                if not len(echo):
-                    self._logger.error(
-                        'No hay respuesta del echo en paquete para el nodo {}'.format(paq.destino))
-                    raise ReadException
-                try:
-                    Paquete(paq=echo)
-                except ChecksumException:
-                    self._logger.error(
-                        'No se resuelve checksum en echo para el nodo {}'.format(paq.destino))
-                    raise ReadException
-
-                rta = self._ser.read(paq.rta_size)
-                self._logger.debug('Respuesta: {0}'.format(binascii.hexlify(rta)))
-                try:
-                    paq_rta = Paquete(paq=rta)
-                except (ChecksumException, IndexError) as e:
-                    raise WriteException
-                return paq_rta
-            except serial.SerialException as e:
-                self._logger.error('Error en el puerto serie: {}'.format(str(e)))
+                response_package = self.get_package_from_length(package.rta_size)
+                return response_package
+            except ReadException:
                 raise WriteException
-            finally:
-                self.using_ser.release()
 
-    def read_paq(self):
+    def listen_packages(self):
         """
+        If you are not master this means that you anly can listen to the packages in
+        the network.
+        This function returns a generator that on each iteration yield a :class:`package`.
+        Also check if ``want_master`` flag is set to know if should answer to the token
+        offer when appear.
+
         return:
-            generador de paquetes
-        raise:
-            ReadException
-            NoSlaveException
+            Python generator
+
+        yield: :class:`Paquete`
+
+        raises:
+            * NoSlaveException: In case that the serial port don't return nothing.
+                Which means that nobody is talking, so you are master now.
         """
         self._logger.debug("Esperando disponibilidad de puerto serie.")
-        if self._ser.isOpen():
-            self.using_ser.acquire()
-            ser_buffer = ''
-            while not self.im_master:
+        with self.using_ser:
+            bytes_chain = b''
+            while not self._stop:
                 try:
-                    ser_buffer += self._ser.read(3)
-                    funcion, longitud = decode.fun_lon(ser_buffer[1:2])
-                    if len(ser_buffer) < longitud + 3:
-                        ser_buffer += self._ser.read(
-                            longitud+3-len(ser_buffer))
-                    str_paq = ser_buffer[:longitud+3]
-                    paq = Paquete(paq=str_paq)
-                    ser_buffer = ser_buffer[(longitud+3):]
+                    bytes_chain += self._ser.read(3)
+                    function, data_length = decode.function_length(bytes_chain[1:2])
+                    package_length = data_length + 3
+                    if len(bytes_chain) < package_length:
+                        bytes_chain += self._ser.read(package_length-len(bytes_chain))
+                    package = Package(bytes_chain=bytes_chain[:package_length])
+                    bytes_chain = bytes_chain[package_length:]
 
-                    if self.want_master.isSet() and paq.funcion == 7 and not len(ser_buffer):
-                        self.acept_token(paq.origen)
+                    if self.want_master.isSet() and package.funcion == 7 and not len(bytes_chain):
+                        self.acept_token(package.sender)
                         self.check_master(ser_locked=True)
                         if self.im_master:
                             self.want_master.clear()
-
-                    yield paq
-
+                    yield package
                 except (ChecksumException, DecodeError) as e:
-                    self._logger.warning("Paquete perdido.")
-                    ser_buffer = ser_buffer[1:]
+                    self._logger.info("Paquete perdido.")
+                    bytes_chain = bytes_chain[1:]
                     continue
-
-                except serial.SerialException as e:
-                    self._logger.error(
-                        'Error en el puerto serie: {}'.format(str(e))
-                    )
-
                 except IndexError:
                     self._logger.warning(
-                        'Funcion read_ser no recibe nada. Longitud ser_buffer {}'.format(len(ser_buffer)))
+                        'Funcion read_ser no recibe nada.')
                     self.check_master(ser_locked=True)
                     if self.im_master and not self.want_master.isSet():
+                        self.want_master.clear()
                         raise NoSlaveException
-            self.want_master.clear()
-            self.using_ser.release()
 
-    def acept_token(self, origen):
+    def acept_token(self, sender):
+        """
+        This function answer the token offer to a specific node.
+        Usualy is executed by :func:``read_paq`` when the flag ``want_master``
+        is set.
+
+        If you want to use this in another place, take care about the timeout to
+        respond the token offer if you are not master.
+
+        :param origen: The ``lan_dir`` of the node that send the token offer.
+
+        """
         self._logger.info('Aceptando oferta de token.')
-        token_rta = Paquete(
-            origen=0, destino=origen, funcion=7)
-        self._ser.write(token_rta.to_write)
-        self._ser.read(len(token_rta.to_write))
-        rta = self._ser.read(token_rta.rta_size)
-        self._logger.info(
-            'Respuesta del master {}.'.format(binascii.hexlify(rta)))
+        token_rta = Package(destination=sender, function=7)
+        self._ser.write(token_rta.bytes_chain)
+        echo_package = self.get_package_from_length(len(token_rta.bytes_chain))
+        response = self.get_package_from_length(token_rta.rta_size)
 
     def check_master(self, ser_locked=False):
         """
-        raise:
-            ReadException
+        Listen the serial port until ``WAIT_MASTER_PERIOD`` is reached
+        if can't read any byte from the network this means that I'm
+        master. If is full of something this means that another node
+        is master.
+
+        :param ser_locked: Flag that indicate if the serial port was locked
+            before calling ``check_master`` for another function, or if it
+            should be locked for made the master check.
         """
-        self._logger.debug('Chequeando estado del master.')
         if not ser_locked:
-            self._logger.debug('Bloqueando puerto serie.')
             self.using_ser.acquire()
         timeout = time.time() + WAIT_MASTER_PERIOD
-        try:
-            if self._ser.isOpen():
-                read = ''
-                self._ser.flushInput()
-                while not len(read):
-                    if time.time() > timeout:
-                        break
-                    read = self._ser.read()
-                self.im_master = len(read) == 0
-        except AttributeError:
-            self._ser.close()
-            raise ReadException
-
-        finally:
-            if not ser_locked:
-                self.using_ser.release()
-        self._logger.info('Chequeo del master: {}'.format(str(self.im_master)))
+        bytes_chain = b''
+        self._ser.flushInput()
+        while time.time() > timeout:
+            bytes_chain += self._ser.read()
+        self.im_master = len(bytes_chain) > 0
+        if not ser_locked:
+            self.using_ser.release()
+        self._logger.info('Chequeo del master: %s', self.im_master)

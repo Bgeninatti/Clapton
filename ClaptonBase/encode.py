@@ -1,41 +1,30 @@
-import struct
+from bitarray import bitarray
 from .exceptions import EncodeError
 
 
-def checksum(data):
-    try:
-        return struct.pack('B', (0 - sum(
-            struct.unpack('{}b'.format(len(data)), data)) & 0b11111111))
-    except (struct.error, TypeError) as e:
-        raise EncodeError
+def make_checksum(bytes_chain):
+    if not isinstance(bytes_chain, bytes):
+        raise TypeError
+    return bytes([0-sum(bytes_chain) & 0b11111111])
 
 
-def fuen_des(origen, destino):
-    try:
-        if type(origen) != int:
-            origen = int(origen)
-        if type(destino) != int:
-            destino = int(destino)
-    except (ValueError, TypeError) as e:
+def sender_destination(sender, destination):
+    if not isinstance(sender, int) or not isinstance(destination, int):
+        raise TypeError
+    if sender > 15 or destination > 15:
         raise EncodeError
-    if origen > 15 or destino > 15:
-        raise EncodeError
-    return struct.pack(
-        'B', int(bin(origen)[2:].zfill(4) + bin(destino)[2:].zfill(4), 2))
+    bits = bitarray(bin(sender)[2:].zfill(4))
+    bits.extend(bin(destination)[2:].zfill(4))
+    return bits.tobytes()
 
 
-def fun_lon(funcion, longitud):
-    try:
-        if type(funcion) != int:
-            funcion = int(funcion)
-        if type(longitud) != int:
-            longitud = int(longitud)
-    except (ValueError, TypeError) as e:
+def function_length(function, length):
+    if not isinstance(function, int) or not isinstance(length, int):
+        raise TypeError
+    if function > 7 or length > 31:
         raise EncodeError
-    if funcion > 7 or longitud > 31:
-        raise EncodeError
-    try:
-        return struct.pack('B', int(str(
-            bin(funcion)[2:].zfill(3)) + str(bin(longitud)[2:].zfill(5)), 2))
-    except (struct.error, TypeError) as e:
-        raise EncodeError
+    bits = bitarray(bin(function)[2:].zfill(3))
+    bits.extend(bin(length)[2:])
+    return bits.tobytes()
+
+

@@ -1,29 +1,28 @@
-import struct
-import sys
+from bitarray import bitarray
 from .exceptions import DecodeError
 
 
-def fuen_des(byte):
-    try:
-        add = struct.unpack('B', byte)[0]
-        return add >> 4, add & 0b00001111
-    except (struct.error, TypeError) as e:
+def sender_destination(byte):
+    if not isinstance(byte, bytes):
+        raise TypeError
+    if len(byte) != 1:
         raise DecodeError
+    bits = bitarray()
+    bits.frombytes(byte)
+    sender, destination = bits[:4].tobytes()[0] >> 4, bits[4:].tobytes()[0] >> 4
+    return sender, destination
 
-
-def fun_lon(byte):
-    try:
-        add = struct.unpack('B', byte)[0]
-        return add >> 5, add & 0b00011111
-    except (struct.error, TypeError) as e:
+def function_length(byte):
+    if not isinstance(byte, bytes):
+        raise TypeError
+    if len(byte) != 1:
         raise DecodeError
+    bits = bitarray()
+    bits.frombytes(byte)
+    function, length = bits[:5].tobytes()[0] >> 5, bits[5:].tobytes()[0] >> 3
+    return function, length
 
-
-def validate_cs(paq):
-    try:
-        if not len(paq):
-            return False
-        return sum(struct.unpack(
-            '{}b'.format(len(paq)), paq)) & 0b11111111 == 0
-    except (struct.error, TypeError) as e:
-        raise DecodeError
+def validate_checksum(bytes_chain):
+    if not isinstance(bytes_chain, bytes):
+        raise TypeError
+    return sum(bytes_chain) & 0b11111111 == 0

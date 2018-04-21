@@ -2,7 +2,7 @@ import unittest
 from ClaptonBase.serial_instance import SerialInterface
 from ClaptonBase.containers import Paquete, Node, MemoInstance
 from ClaptonBase.exceptions import ChecksumException, PaqException, \
-    InactiveAppException, EncodeError
+    InactiveAppException, EncodeError, DecodeError
 
 
 class PaqueteTestCase(unittest.TestCase):
@@ -29,6 +29,10 @@ class PaqueteTestCase(unittest.TestCase):
     def test_decode_validate_cs(self):
         with self.assertRaises(ChecksumException):
             Paquete(paq=b'\x01\x42\x00\xff')
+
+    def test_decode_error(self):
+        with self.assertRaises(DecodeError):
+            Paquete(paq=b'\x01\x42')
 
     def test_validate_fun(self):
         with self.assertRaises(PaqException):

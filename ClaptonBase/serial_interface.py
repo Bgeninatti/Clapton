@@ -149,6 +149,18 @@ class SerialInterface(object):
             raise ReadException
         return readed_package
 
+    def get_package_on_the_fly(self):
+        """
+        Try to listen an entire package from the up comming bytes in the serial port.
+        If the checkum is not write raises ReadException
+        """
+        head_bytes = self._ser.read(2)
+        if len(head_bytes) < 2:
+            raise ReadException
+        function, length = decode.function_length(head_bytes[1:2])
+        tail_bytes = self._ser.read(length+1)
+        readed_package = Package(bytes_chain=head_bytes+tail_bytes)
+        return readed_package
 
     def send_package(self, package):
         """
@@ -176,9 +188,9 @@ class SerialInterface(object):
             self._ser.flushInput()
             self._logger.debug('Escribiendo: {}'.format(package.representation))
             self._ser.write(package.to_write)
-            echo_package = self.get_package_from_length(len(package.bytes_chain))
+            echo_package = self.get_package_on_the_fly()
             try:
-                response_package = self.get_package_from_length(package.rta_size)
+                response_package = self.get_package_on_the_fly()
                 return response_package
             except ReadException:
                 raise WriteException

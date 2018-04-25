@@ -87,10 +87,11 @@ class TestPackage(object):
     ])
     def test_to_send_raises_invalid_package(self, sender, destination, function, data):
         with pytest.raises(InvalidPackage):
-            Package(sender=sender,
-                    destination=destination,
-                    function=function,
-                    data=data)
+            invalid_package = Package(sender=sender,
+                                      destination=destination,
+                                      function=function,
+                                      data=data)
+            invalid_package.validate()
 
     @pytest.mark.parametrize("sender,destination,function,data", [
         (None, 5, 0, b''),

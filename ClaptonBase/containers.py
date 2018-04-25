@@ -26,8 +26,7 @@ class Package(object):
                  sender=0,
                  destination=None,
                  function=None,
-                 data=b'',
-                 validate=True):
+                 data=b''):
         """
         This class could be initialized in two ways:
             1. Make a package to be sended into the TKLan.
@@ -77,9 +76,6 @@ class Package(object):
             self.length = len(self.data)
             self.checksum = None
             self.bytes_chain = self._make_byte_chain()
-            if validate:
-                self._validate()
-                self.rta_size = self._get_rta_size()
         else:
             raise AttributeError
         self.hexlified = binascii.hexlify(self.bytes_chain).decode()
@@ -90,7 +86,7 @@ class Package(object):
         self.checksum = encode.make_checksum(first_byte + second_byte + self.data)
         return first_byte + second_byte + self.data + self.checksum
 
-    def _validate(self):
+    def validate(self):
         if self.function == 7 and len(self.data):
             raise InvalidPackage('No se reconoce la funcion')
         elif self.function == 0 and len(self.data):
@@ -116,7 +112,7 @@ class Package(object):
                 'Las funciones de escritura de aplicacion siempre tienen que '
                 'tener longitud de datos mayor a 1.')
 
-    def _get_rta_size(self):
+    def get_rta_size(self):
         """
         Calcula tamanio de la respuesta segun la funcion del paquete
         Llegada a esta instancia la funcion ya fue validad y se asegura que

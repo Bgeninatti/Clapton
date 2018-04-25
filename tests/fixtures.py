@@ -40,26 +40,22 @@ def ser_answer_all():
                 return Package(sender=package.destination,
                                destination=package.sender,
                                function=package.function,
-                               data=os.urandom(8),
-                               validate=False)
+                               data=os.urandom(8))
             elif package.function in READ_FUNCTIONS:
                 length = package.data[1]
                 data = os.urandom(length)
                 return Package(sender=package.destination,
                                destination=package.sender,
                                function=package.function,
-                               data=data,
-                               validate=False)
+                               data=data)
             elif package.function in WRITE_FUNCTIONS:
                 return Package(sender=package.destination,
                                destination=package.sender,
-                               function=package.function,
-                               validate=False)
+                               function=package.function)
             elif package.function == 7:
                 return Package(sender=package.destination,
                                destination=package.sender,
-                               function=package.function,
-                               validate=False)
+                               function=package.function)
     return SerialAnswerAll()
 
 

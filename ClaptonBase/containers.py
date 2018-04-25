@@ -1,14 +1,16 @@
-import struct
-import time
-import sys
 import binascii
+import struct
+import sys
+import time
 
-from .cfg import (READ_FUNCTIONS, WRITE_FUNCTIONS, APP_LINE_SIZE, DEFAULT_BUFFER,
-                  DEFAULT_EEPROM, DEFAULT_RAM_READ, DEFAULT_RAM_WRITE, COMMAND_SEPARATOR,
-                  MEMO_READ_NAMES, MEMO_WRITE_NAMES)
-from . import encode, decode
-from .exceptions import ChecksumException, WriteException, ReadException, \
-    TokenExeption, NodeNotExists, PaqException, EncodeError
+from . import decode, encode
+from .cfg import (APP_LINE_SIZE, COMMAND_SEPARATOR, DEFAULT_BUFFER,
+                  DEFAULT_EEPROM, DEFAULT_RAM_READ, DEFAULT_RAM_WRITE,
+                  MEMO_READ_NAMES, MEMO_WRITE_NAMES, READ_FUNCTIONS,
+                  WRITE_FUNCTIONS)
+from .exceptions import (ChecksumException, EncodeError, InvalidPackage,
+                         NodeNotExists, ReadException, TokenExeption,
+                         WriteException)
 from .utils import get_logger
 
 
@@ -24,7 +26,8 @@ class Package(object):
                  sender=0,
                  destination=None,
                  function=None,
-                 data=b''):
+                 data=b'',
+                 validate=True):
         """
         This class could be initialized in two ways:
             1. Make a package to be sended into the TKLan.
@@ -52,18 +55,21 @@ class Package(object):
             EncodeError
             ChecksumException
             AttributeError
-            PaqException
+            InvalidPackage
         """
         if bytes_chain is not None:
             if decode.validate_checksum(bytes_chain):
-                self.cs = bytes_chain[len(bytes_chain)-1:len(bytes_chain)]
+                self.checksum = bytes_chain[len(bytes_chain)-1:len(bytes_chain)]
             else:
                 raise ChecksumException
             self.bytes_chain = bytes_chain
             self.sender, self.destination = decode.sender_destination(bytes_chain[0:1])
             self.function, self.length = decode.function_length(bytes_chain[1:2])
             self.data = bytes_chain[2:-1]
-        elif sender is not None and destination is not None and function is not None:
+        elif sender is not None and \
+                destination is not None and \
+                function is not None and \
+                data is not None:
             self.sender = sender
             self.destination = destination
             self.function = function
@@ -71,8 +77,9 @@ class Package(object):
             self.length = len(self.data)
             self.checksum = None
             self.bytes_chain = self._make_byte_chain()
-            self._validate()
-            self.rta_size = self._get_rta_size()
+            if validate:
+                self._validate()
+                self.rta_size = self._get_rta_size()
         else:
             raise AttributeError
         self.hexlified = binascii.hexlify(self.bytes_chain).decode()
@@ -84,28 +91,28 @@ class Package(object):
         return first_byte + second_byte + self.data + self.checksum
 
     def _validate(self):
-        if self.function == 7:
-            raise PaqException('No se reconoce la funcion')
+        if self.function == 7 and len(self.data):
+            raise InvalidPackage('No se reconoce la funcion')
         elif self.function == 0 and len(self.data):
-            raise PaqException(
+            raise InvalidPackage(
                 'La funcion 0 siempre tiene que tener longitud de datos 0.')
         elif self.function in READ_FUNCTIONS and len(self.data) != 2:
-            raise PaqException(
+            raise InvalidPackage(
                 'Las funciones de lectura de memoria siempre tienen que tener'
                 ' longitud de datos 2.')
         elif self.function in WRITE_FUNCTIONS and len(self.data) <= 1:
-            raise PaqException(
+            raise InvalidPackage(
                 'Las funciones de escritura de memoria siempre tienen que '
                 'tener longitud de datos mayor a 1.')
         elif self.function == 5 and len(self.data) != 3:
             # El paquete de funcion 5 tiene que tener longitud 3 siempre. Dos
             # bytes indicando el inicio (una palabra) y un byte indicando la
             # longitud.
-            raise PaqException(
+            raise InvalidPackage(
                 'La funcion de lectura de aplicacion siempre tiene que tener '
                 'longitud de datos 3.')
         elif self.function == 6 and len(self.data) < 2:
-            raise PaqException(
+            raise InvalidPackage(
                 'Las funciones de escritura de aplicacion siempre tienen que '
                 'tener longitud de datos mayor a 1.')
 
@@ -113,18 +120,16 @@ class Package(object):
         """
         Calcula tamanio de la respuesta segun la funcion del paquete
         Llegada a esta instancia la funcion ya fue validad y se asegura que
-        esta no es mayor a 8, sin embargo excepcion de PaqException se
+        esta no es mayor a 8, sin embargo excepcion de InvalidPackage se
         establece igual
         """
         rta_size = None
         if self.function == 0:
             rta_size = 13
         elif self.function in READ_FUNCTIONS:
-            _, length = struct.unpack('2b', self.data)
+            _, length = struct.unpack('2B', self.data)
             rta_size = 3 + length
-        elif self.function == 2:
-            rta_size = 3 + self.length
-        elif self.function == 4:
+        elif self.function in WRITE_FUNCTIONS:
             rta_size = 3 + self.length
         elif self.function == 5:
             start, length = struct.unpack('Hb', self.data)
@@ -134,10 +139,8 @@ class Package(object):
                 rta_size = 4
             # el dos es por la direccion y el 3 por el resto del paquete.
             rta_size = APP_LINE_SIZE + 2 + 3
-        elif self.function == 7:
-            rta_size = 3
         else:
-            raise PaqException('No se reconoce la funcion')
+            rta_size = 3
         return rta_size
 
 
@@ -151,6 +154,13 @@ class MemoInstance(object):
     def __init__(self, node, instance, start, timestamp=None, data=b''):
         # contenedor dummy de atributos. Los datos no son requeridos para
         # podera armar la memoria de a dos paquetes cuando no soy master.
+        if node > 15 or node < 0:
+            raise AttributeError
+        if instance not in MEMO_READ_NAMES.keys():
+            raise AttributeError
+        if not isinstance(data, bytes):
+            raise AttributeError
+
         self.timestamp = timestamp
         self.node = node
         self.instance = instance
@@ -165,7 +175,7 @@ class MemoInstance(object):
             self.instance,
             self.start,
             self.timestamp,
-            binascii.hexlify(self.data))
+            binascii.hexlify(self.data).decode())
 
     def get(self, index, default_value=None):
         if index < self.start or index > self.start + self.length:
@@ -179,10 +189,11 @@ class Node(object):
                  lan_dir,
                  ser,
                  is_master=False,
-                 stream_ram_indexes=set(),
-                 stream_eeprom_indexes=set(),
                  log_level=None,
                  log_file=None):
+        if not isinstance(lan_dir, int) or lan_dir > 15 or lan_dir < 0:
+            raise TypeError
+
         # Inicio logger
         self._logger = get_logger(__name__, log_level, log_file)
         # Guardo la instancia del puerto serie.
@@ -208,12 +219,6 @@ class Node(object):
         self.ram_read = DEFAULT_RAM_READ
         self.ram_write = DEFAULT_RAM_WRITE
 
-        self.stream_eeprom_indexes = stream_eeprom_indexes
-        self.stream_ram_indexes = stream_ram_indexes
-
-        # En donde se almacenaran los servicios leidos del pic
-        self.services = {}
-
     @property
     def status(self):
         return self._status
@@ -225,6 +230,8 @@ class Node(object):
         :raise:
           TypeError: si el estado no es int
         """
+        if not isinstance(value, int):
+            raise TypeError
         # Actualizo el estado y renuevo timestamp si el estado es 1.
         self._logger.debug(
             "Estado del nodo {}.".format(self.lan_dir))
@@ -232,36 +239,35 @@ class Node(object):
         if value == 1:
             self.last_seen = time.time()
 
-    def identify(self, rta=None):
+    def identify(self, rta_bytes_chain=None):
         """
         :param rta: Una instancia de Paquete con la respuesta de la funcion 0
         :return: None
-          TypeError: Si rta no es None y no es una instancia de paquete o no es
-          un paquete con funcion 0
-          InactiveAppException: Si la aplicacion esta inactiva
+          AttributeError: Si rta no es None y no es una instancia de paquete o
+            no corresponde a una respuesta de la función 0
           NodeNotExists: Si no se recibio respuesta del nodo
+          ChecksumException: Si el paquete de identificacion no es válido. Ya sea
+            porque su función no es 0 o porque la longitud de losd atos es
+            insuficiente para obtener la información que se requiere
         """
 
         self._logger.info("Identificando nodo {}.".format(self.lan_dir))
         status = self.status
         try:
-            if not rta:
+            if not rta_bytes_chain:
                 package = Package(destination=self.lan_dir, function=0)
                 rta = self._ser.send_package(package)
-            self.eeprom_size = struct.unpack('b', rta.datos[2:3])[0] * 64 \
-                if len(rta.datos[2:3]) else DEFAULT_EEPROM
-            self.buffer = struct.unpack('b', rta.datos[5:6])[0] \
-                if len(rta.datos[5:6]) else DEFAULT_BUFFER
-            self.ram_write = struct.unpack('b', rta.datos[6:7])[0] \
-                if len(rta.datos[6:7]) else DEFAULT_RAM_WRITE
-            self.ram_read = struct.unpack('b', rta.datos[7:8])[0] \
-                if len(rta.datos[7:8]) else DEFAULT_RAM_READ
+            else:
+                rta = Package(bytes_chain=rta_bytes_chain)
+            if rta.function != 0 or len(rta.data) < 8:
+                self._logger.error("El paquete no contiene toda la información para la identificación del nodo")
+                raise InvalidPackage("No es un paquete de identificación válido")
+            self.eeprom_size = struct.unpack('b', rta.data[2:3])[0] * 64
+            self.buffer = struct.unpack('b', rta.data[5:6])[0]
+            self.ram_write = struct.unpack('b', rta.data[6:7])[0]
+            self.ram_read = struct.unpack('b', rta.data[7:8])[0]
             status = 1
-        except IndexError:
-            self._logger.warning(
-                "Nodo {} posiblemente con una version vieja de software.".format(self.lan_dir))
-            status = 1
-        except (WriteException, ReadException) as e:
+        except WriteException as e:
             if self._ser.im_master:
                 self._logger.error("El nodo {} no existe.".format(self.lan_dir))
                 status = 3
@@ -280,24 +286,6 @@ class Node(object):
 
     def write_eeprom(self, start, data):
         return self._write_memo(start, data, instance='EEPROM')
-
-    def return_token(self):
-        """
-        :return: None
-        :raise:
-            InactiveAppException: Si la aplicacion esta inactiva.
-            TokenExeption: Si no se pudo hacer el traspaso de token.
-            WriteException: Si no se pudo escribir el paquete.
-            ReadException: Si no se pudo leer la respuesta del nodoself.
-        """
-
-        self._logger.info("Ofreciendo token al nodo {}.".format(self.lan_dir))
-        token_package = Package(destination=self.lan_dir, function=7)
-        self._ser.send_package(token_package)
-        self._ser.check_master()
-        if self._ser.im_master:
-            self._logger.error("Error en traspaso de master al nodo {}.".format(self.lan_dir))
-            raise TokenExeption
 
     def _make_streaming_packages(self, indexes, instance):
         end = -1
@@ -320,15 +308,18 @@ class Node(object):
         quiere leer (RAM o EEPROM)
         :return: Lista de memo_instances para cada uno de los valores leidos
         :raise:
-          InactiveAppException: Si la aplicacion esta inactiva.
-          WriteException: Si no se pudo escribir el paquete.
-          ReadException: Si no se pudo leer la respuesta del nodo.
+          KeyError: Si ``instance`` no es ni `RAM` ni `EEPROM`
+          InvalidPackage: Si ``start`` o ``length`` son mayores a 255
         """
 
         self._logger.debug("Leyendo memoria del nodo {}.".format(self.lan_dir))
-        read_package = Package(destination=self.lan_dir,
-                               function=MEMO_READ_NAMES[instance],
-                               data=struct.pack('2B', start, length))
+        try:
+            read_package = Package(destination=self.lan_dir,
+                                   function=MEMO_READ_NAMES[instance],
+                                   data=struct.pack('2B', start, length))
+        except struct.error as e:
+            raise InvalidPackage
+
         rta = self._ser.send_package(read_package)
         return MemoInstance(node=rta.sender,
                             instance=instance,
@@ -345,22 +336,22 @@ class Node(object):
         quiere escribir (RAM o EEPROM)
         :return: None
         :raise:
-          EncodeError: Si el formato de datos no es correcto
-          InactiveAppException: Si la aplicacion esta inactiva
-          WriteException: Si no se pudo escribir el paquete.
-          ReadException: Si no se pudo leer la respuesta del nodo.
+          InvalidPackage: Si ``start`` es mayor de 255
+          KeyError: Si ``instance`` no hace referencia a `RAM` o `EEPROM`
+          TypeError: Si ``data`` no es de tipo bytes
         """
 
         self._logger.info(
             "Escribiendo datos {0} en nodo {1}.".format(
-                binascii.hexlify(datos), self.lan_dir))
+                binascii.hexlify(data), self.lan_dir))
         try:
-            write_package = Package(destination=self.lan_dir,
-                                    function=MEMO_WRITE_NAMES[instance],
-                                    data=struct.pack('B', start) + data)
+            writed_package = Package(destination=self.lan_dir,
+                                     function=MEMO_WRITE_NAMES[instance],
+                                     data=struct.pack('B', start) + data)
         except struct.error:
-            raise EncodeError
-        self._ser.send_package(write_package)
+            raise InvalidPackage
+        answer_package = self._ser.send_package(writed_package)
+        return writed_package, answer_package
 
     def __dir__(self):
         return {
@@ -371,6 +362,5 @@ class Node(object):
             'ram_write': self.ram_write,
             'eeprom_size': self.eeprom_size,
             'is_master': self.is_master,
-            'services': self.services,
             'time': time.time(),
         }

@@ -15,5 +15,5 @@ any computer with serial port.
 """
 
 __author__ = 'Bruno Geninatti'
-__all__ = ["exceptions", "decode", "encode", "utils", "serial_instance",
+__all__ = ["exceptions", "decode", "encode", "utils", "serial",
            "containers"]

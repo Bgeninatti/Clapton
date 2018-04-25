@@ -5,17 +5,20 @@
 
 """
 
-import time
 import binascii
+import time
+from threading import Lock, Thread
+
 import serial
-from threading import Thread, Lock
+
 from . import decode
-from .exceptions import WriteException, ReadException, ChecksumException, \
-    NoMasterException, SerialConfigError, NoSlaveException, DecodeError
-from .containers import Package
-from .cfg import (DEFAULT_BAUDRATE, DEFAULT_LOG_LVL, DEFAULT_LOG_FILE,
+from .cfg import (DEFAULT_BAUDRATE, DEFAULT_LOG_FILE, DEFAULT_LOG_LVL,
                   DEFAULT_SERIAL_TIMEOUT, WAIT_MASTER_PERIOD)
-from .utils import get_logger, MasterEvent, GiveMasterEvent
+from .containers import Package
+from .exceptions import (ChecksumException, DecodeError, NoMasterException,
+                         NoSlaveException, ReadException, SerialConfigError,
+                         WriteException)
+from .utils import GiveMasterEvent, MasterEvent, get_logger
 
 
 class SerialInterface(object):
@@ -228,7 +231,7 @@ class SerialInterface(object):
                         self.want_master.clear()
                         raise NoSlaveException
 
-    def acept_token(self, sender):
+    def accept_token(self, sender):
         """
         This function answer the token offer to a specific node.
         Usualy is executed by :func:``read_paq`` when the flag ``want_master``
@@ -245,6 +248,25 @@ class SerialInterface(object):
         self._ser.write(token_rta.bytes_chain)
         echo_package = self.get_package_from_length(len(token_rta.bytes_chain))
         response = self.get_package_from_length(token_rta.rta_size)
+
+    def offer_token(self, destination):
+        """
+        :return: None
+        :raise:
+            TokenExeption: Si no se pudo hacer el traspaso de token.
+            WriteException: Si no se pudo leer el echo.
+            ReadException: Si no se pudo leer la respuesta del nodo.
+        """
+
+        self._logger.info("Ofreciendo token al nodo {}.".format(destination))
+        token_offer = Package(destination=destination, function=7)
+        self._ser.write(token_offer.bytes_chain)
+        echo_package = self.get_package_from_length(len(token_offer.bytes_chain))
+        response = self.get_package_from_length(token_offer.rta_size)
+        self.check_master()
+        if self.im_master:
+            self._logger.error("Error en traspaso de master al nodo {}.".format(self.lan_dir))
+            raise TokenException
 
     def check_master(self, ser_locked=False):
         """

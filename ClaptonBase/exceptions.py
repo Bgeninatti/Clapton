@@ -93,7 +93,7 @@ class TokenExeption(Exception):
         super(TokenExeption, self).__init__(TokenExeption.error_msg)
 
 
-class PaqException(Exception):
+class InvalidPackage(Exception):
     code = 600
 
 

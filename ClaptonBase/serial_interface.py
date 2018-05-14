@@ -4,8 +4,6 @@
     :synopsis: This module only provide the class :class:`SerialInterface`
 
 """
-
-import binascii
 import time
 from threading import Lock, Thread
 
@@ -19,6 +17,9 @@ from .exceptions import (ChecksumException, DecodeError, NoMasterException,
                          NoSlaveException, ReadException, SerialConfigError,
                          WriteException)
 from .utils import GiveMasterEvent, MasterEvent, get_logger
+
+
+logger = get_logger('serial')
 
 
 class SerialInterface(object):
@@ -71,8 +72,7 @@ class SerialInterface(object):
 
         """
 
-        self._logger = get_logger(__name__, log_level, log_file)
-        self._logger.info("Iniciando SerialInstance.")
+        logger.info("Iniciando SerialInstance.")
         self.using_ser = Lock()
         self._serial_port = serial_port
         self._baudrate = baudrate
@@ -103,11 +103,15 @@ class SerialInterface(object):
         Close the connection with the serial port and stop the connection
         thread.
         """
-        self._logger.info("Parando SerialInstance.")
+        logger.info("Parando SerialInstance.")
         self._stop = True
-        self._connection_thread.join()
+        self._connection_thread.join(timeout=5)
+        if self._connection_thread.is_alive():
+            self._connection_thread.terminate()
         self._ser.close()
-        self._connection_thread = Thread(target=self._connection)
+
+    def isOpen(self):
+        return self._ser.isOpen()
 
     def _do_connect(self):
         """
@@ -118,10 +122,10 @@ class SerialInterface(object):
             self._ser.open()
             self.check_master()
         except (serial.SerialException, OSError) as e:
-            self._logger.error(
+            logger.error(
                 'Error intentando abrir el puerto serie: %s', str(e))
             raise SerialConfigError
-        return self._ser.isOpen()
+        return self.isOpen()
 
     def _connection(self):
         """
@@ -129,23 +133,22 @@ class SerialInterface(object):
         port is not open, run _do_connect until we say it that stop (by
         running the :fun:`stop`).
         """
-        self._logger.info("Iniciando ConnectionThread.")
+        logger.info("Iniciando ConnectionThread.")
         self._do_connect()
         while not self._stop:
-            if not self._ser.isOpen():
-                self._logger.error(
+            if not self.isOpen():
+                logger.error(
                     'Perdimos la conexion con el puerto serie. Reconectando...')
                 self._do_connect()
 
     def get_package_from_length(self, length):
         bytes_chain = self._ser.read(length)
         if len(bytes_chain) < length:
-            self._logger.error('Se obtuvieron sólo %s bytes: %s', len(bytes_chain), bytes_chain.decode())
             raise ReadException
         try:
             readed_package = Package(bytes_chain=bytes_chain)
         except (ChecksumException, DecodeError) as e:
-            self._logger.error('No se obtuvo un paquete válido de %s bytes: %s', length, bytes_chain)
+            logger.error('No se obtuvo un paquete válido de %s bytes.', length)
             raise ReadException
         return readed_package
 
@@ -157,7 +160,9 @@ class SerialInterface(object):
         head_bytes = self._ser.read(2)
         if len(head_bytes) < 2:
             raise ReadException
+        print(head_bytes[1:2])
         function, length = decode.function_length(head_bytes[1:2])
+        print("Longitud {}".format(length))
         tail_bytes = self._ser.read(length+1)
         readed_package = Package(bytes_chain=head_bytes+tail_bytes)
         return readed_package
@@ -183,16 +188,15 @@ class SerialInterface(object):
         """
         if not self.im_master:
             raise NoMasterException
-        self._logger.debug("Esperando disponibilidad de puerto serie.")
+        logger.debug("Esperando disponibilidad de puerto serie.")
         with self.using_ser:
             self._ser.flushInput()
-            self._logger.debug('Escribiendo: {}'.format(package.representation))
-            self._ser.write(package.to_write)
-            echo_package = self.get_package_on_the_fly()
+            self._ser.write(package.bytes_chain)
+            echo_package = self.get_package_from_length(len(package.bytes_chain))
             try:
                 response_package = self.get_package_on_the_fly()
                 return response_package
-            except ReadException:
+            except (ReadException, ChecksumException) as e:
                 raise WriteException
 
     def listen_packages(self):
@@ -212,7 +216,7 @@ class SerialInterface(object):
             * NoSlaveException: In case that the serial port don't return nothing.
                 Which means that nobody is talking, so you are master now.
         """
-        self._logger.debug("Esperando disponibilidad de puerto serie.")
+        logger.debug("Esperando disponibilidad de puerto serie.")
         with self.using_ser:
             bytes_chain = b''
             while not self._stop:
@@ -232,11 +236,11 @@ class SerialInterface(object):
                             self.want_master.clear()
                     yield package
                 except (ChecksumException, DecodeError) as e:
-                    self._logger.info("Paquete perdido.")
+                    logger.info("Paquete perdido.")
                     bytes_chain = bytes_chain[1:]
                     continue
                 except IndexError:
-                    self._logger.warning(
+                    logger.warning(
                         'Funcion read_ser no recibe nada.')
                     self.check_master(ser_locked=True)
                     if self.im_master and not self.want_master.isSet():
@@ -255,7 +259,7 @@ class SerialInterface(object):
         :param origen: The ``lan_dir`` of the node that send the token offer.
 
         """
-        self._logger.info('Aceptando oferta de token.')
+        logger.info('Aceptando oferta de token.')
         token_rta = Package(destination=sender, function=7)
         self._ser.write(token_rta.bytes_chain)
         echo_package = self.get_package_from_length(len(token_rta.bytes_chain))
@@ -270,14 +274,14 @@ class SerialInterface(object):
             ReadException: Si no se pudo leer la respuesta del nodo.
         """
 
-        self._logger.info("Ofreciendo token al nodo {}.".format(destination))
+        logger.info("Ofreciendo token al nodo {}.".format(destination))
         token_offer = Package(destination=destination, function=7)
         self._ser.write(token_offer.bytes_chain)
         echo_package = self.get_package_from_length(len(token_offer.bytes_chain))
         response = self.get_package_from_length(token_offer.rta_size)
         self.check_master()
         if self.im_master:
-            self._logger.error("Error en traspaso de master al nodo {}.".format(self.lan_dir))
+            logger.error("Error en traspaso de master al nodo {}.".format(self.lan_dir))
             raise TokenException
 
     def check_master(self, ser_locked=False):
@@ -301,4 +305,4 @@ class SerialInterface(object):
         self.im_master = len(bytes_chain) > 0
         if not ser_locked:
             self.using_ser.release()
-        self._logger.info('Chequeo del master: %s', self.im_master)
+        logger.info('Chequeo del master: %s', self.im_master)

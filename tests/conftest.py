@@ -1,5 +1,6 @@
-from .fixtures import (node, ser_answer_all, ser_raises_read_exception,
-                      ser_raises_write_exception, virtual_node)
+from .fixtures import (mocked_serial, node, ser_answer_all,
+                       ser_raises_read_exception, ser_raises_write_exception,
+                       virtual_node, mock_read, memo_instance)
 
 
 def pytest_addoption(parser):

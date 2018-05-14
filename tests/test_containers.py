@@ -1,20 +1,10 @@
 import pytest
 
-from ClaptonBase.containers import MemoInstance, Node, Package
-from ClaptonBase.exceptions import (ChecksumException, EncodeError,
+from ClaptonBase.containers import MemoryContainer, Node, Package
+from ClaptonBase.exceptions import (ChecksumException, DecodeError, EncodeError,
                                     InvalidPackage, NodeNotExists)
 from ClaptonBase.serial_interface import SerialInterface
 
-
-@pytest.fixture
-def memo_instance():
-    return MemoInstance(
-        node=0,
-        instance='RAM',
-        start=123,
-        timestamp=12345436234.0,
-        data=b'\x01\x02\x03\x04\x05\x06'
-    )
 
 
 class TestPackage(object):
@@ -35,8 +25,13 @@ class TestPackage(object):
                 valid_package.function,
                 valid_package.data) == expected
 
+    def test_init_with_bytes_raises_decode_error(self):
+        with pytest.raises(DecodeError):
+            Package(bytes_chain=b'')
 
     @pytest.mark.parametrize("bytes_chain", [
+        b'\x05',
+        b'\x9e\x00',
         b'\x05\x00\x05\xfb',
         b',0\x05\x14\01\x8b',
         b'\x9eX\x00\xff\x14\xff\x0c',
@@ -87,17 +82,15 @@ class TestPackage(object):
     ])
     def test_to_send_raises_invalid_package(self, sender, destination, function, data):
         with pytest.raises(InvalidPackage):
-            invalid_package = Package(sender=sender,
-                                      destination=destination,
-                                      function=function,
-                                      data=data)
-            invalid_package.validate()
+            Package(sender=sender,
+                    destination=destination,
+                    function=function,
+                    data=data)
 
     @pytest.mark.parametrize("sender,destination,function,data", [
         (None, 5, 0, b''),
         (2, None, 1, b'\x05\x14'),
         (9, 14, None, b'\x00\xff\xff'),
-        (10, 2, 3, None),
     ])
     def test_init_raises_attribute_error(self, sender, destination, function, data):
         with pytest.raises(AttributeError):
@@ -107,7 +100,7 @@ class TestPackage(object):
                     data=data)
 
 
-class TestMemoInstance(object):
+class TestMemoryContainer(object):
 
     @pytest.mark.parametrize("node,instance,start,timestamp,data", [
         (0, 'RAM', 0, 1235643.0, b'\x05\x00\xfb'),
@@ -118,12 +111,12 @@ class TestMemoInstance(object):
         (14, 'EEPROM', 73, 1235643.0, b';\xe0\xe5'),
     ])
     def test_init_complete_ok(self, node, instance, start, timestamp, data):
-        memo = MemoInstance(node=node,
+        memo = MemoryContainer(node=node,
                             instance=instance,
                             start=start,
                             timestamp=timestamp,
                             data=data)
-        assert isinstance(memo, MemoInstance)
+        assert isinstance(memo, MemoryContainer)
 
     @pytest.mark.parametrize("node,instance,start", [
         (0, 'RAM', 0),
@@ -134,10 +127,10 @@ class TestMemoInstance(object):
         (14, 'EEPROM', 73),
     ])
     def test_init_incomplete_ok(self, node, instance, start):
-        memo = MemoInstance(node=node,
+        memo = MemoryContainer(node=node,
                             instance=instance,
                             start=start)
-        assert isinstance(memo, MemoInstance)
+        assert isinstance(memo, MemoryContainer)
 
     @pytest.mark.parametrize("node,instance,start,timestamp,data,expected", [
         (0, 'RAM', 0, 1235643.0, b'\x05\x00\xfb', '0_RAM_0\n1235643.0\n0500fb'),
@@ -148,7 +141,7 @@ class TestMemoInstance(object):
         (14, 'EEPROM', 73, 1235643.0, b';\xe0\xe5', '14_EEPROM_73\n1235643.0\n3be0e5'),
     ])
     def test_as_msg(self, node, instance, start, timestamp, data, expected):
-        m = MemoInstance(node=node,
+        m = MemoryContainer(node=node,
                          instance=instance,
                          start=start,
                          timestamp=timestamp,
@@ -177,7 +170,7 @@ class TestMemoInstance(object):
     ])
     def test_raises_attribute_error(self, node, instance, start, data):
         with pytest.raises(AttributeError):
-            MemoInstance(node=node,
+            MemoryContainer(node=node,
                          instance=instance,
                          start=start,
                          data=data)
@@ -199,8 +192,8 @@ class TestNode(object):
         ('as', SerialInterface()),
         (-5, SerialInterface()),
     ])
-    def test_init_raises_type_error(self, lan_dir, ser):
-        with pytest.raises(TypeError):
+    def test_init_raises_attribute_error(self, lan_dir, ser):
+        with pytest.raises(AttributeError):
             Node(lan_dir=lan_dir, ser=ser)
 
     @pytest.mark.parametrize("status", [1, 2, 3, 4, ])
@@ -217,16 +210,16 @@ class TestNode(object):
         virtual_node.identify()
         assert virtual_node.status == 1
 
-    @pytest.mark.parametrize("rta", [
-        b'j\x10\x03\x91\x08h\x8a\x1e\x91\x96\xb3',
-        b'y\x10\xbdy\xd1\x02\xa8\\<\x8c\xa2',
-        b'\x08\x10\x0f\xf7\x10\x17{\x9f\x82\xee1',
-        b'\x1a\x10\r\x19\xdd\x066\xa8YGO',
-        b'~\x18}s\x91\x99\xfd\xfb\xd2C\x9d\xac(yY',
-        b'[\x10\xde\xa7\x14\xab\xc6=\x93\x883',
+    @pytest.mark.parametrize("package_zero", [
+        Package(bytes_chain=b'j\x10\x03\x91\x08h\x8a\x1e\x91\x96\xb3'),
+        Package(bytes_chain=b'y\x10\xbdy\xd1\x02\xa8\\<\x8c\xa2'),
+        Package(bytes_chain=b'\x08\x10\x0f\xf7\x10\x17{\x9f\x82\xee1'),
+        Package(bytes_chain=b'\x1a\x10\r\x19\xdd\x066\xa8YGO'),
+        Package(bytes_chain=b'~\x18}s\x91\x99\xfd\xfb\xd2C\x9d\xac(yY'),
+        Package(bytes_chain=b'[\x10\xde\xa7\x14\xab\xc6=\x93\x883'),
     ])
-    def test_identify_with_rta_ok(self, node, rta):
-        node.identify(rta_bytes_chain=rta)
+    def test_identify_with_rta_ok(self, node, package_zero):
+        node.identify(package_zero=package_zero)
         assert node.status == 1
 
     def test_identify_raises_node_not_exists(self, ser_raises_write_exception):
@@ -256,7 +249,7 @@ class TestNode(object):
     ])
     def test_read_memo_ok(self, virtual_node, start, length, instance):
         memo = virtual_node._read_memo(start, length, instance)
-        assert isinstance(memo, MemoInstance)
+        assert isinstance(memo, MemoryContainer)
 
     @pytest.mark.parametrize("start,length,instance", [
         (0, 8, 'RA'),
@@ -273,8 +266,8 @@ class TestNode(object):
         (67, 1231, 'RAM'),
         (999, 15, 'RAM'),
     ])
-    def test_read_memo_raises_invalid_package(self, node, start, length, instance):
-        with pytest.raises(InvalidPackage):
+    def test_read_memo_raises_attribute_error(self, node, start, length, instance):
+        with pytest.raises(AttributeError):
             node._read_memo(start, length, instance)
 
     @pytest.mark.parametrize("start,data,instance,expected", [
@@ -295,8 +288,8 @@ class TestNode(object):
         (1000, b'\x1d\x83', 'EEPROM'),
         (-50, b'@l\xb5\x19\x7f\xa3\xf7\x17', 'RAM'),
     ])
-    def test_write_memo_raises_invalid_package(self, node, start, data, instance):
-        with pytest.raises(InvalidPackage):
+    def test_write_memo_raises_attribute_error(self, node, start, data, instance):
+        with pytest.raises(AttributeError):
             node._write_memo(start, data, instance)
 
     @pytest.mark.parametrize("start,data,instance", [

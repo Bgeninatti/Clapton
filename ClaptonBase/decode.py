@@ -7,9 +7,7 @@ def sender_destination(byte):
         raise TypeError
     if len(byte) != 1:
         raise DecodeError
-    bits = bitarray()
-    bits.frombytes(byte)
-    sender, destination = bits[:4].tobytes()[0] >> 4, bits[4:].tobytes()[0] >> 4
+    sender, destination = byte[0] >> 4, byte[0] & 0b00001111
     return sender, destination
 
 def function_length(byte):
@@ -17,9 +15,7 @@ def function_length(byte):
         raise TypeError
     if len(byte) != 1:
         raise DecodeError
-    bits = bitarray()
-    bits.frombytes(byte)
-    function, length = bits[:5].tobytes()[0] >> 5, bits[5:].tobytes()[0] >> 3
+    function, length = byte[0] >> 5, byte[0] & 0b00011111
     return function, length
 
 def validate_checksum(bytes_chain):

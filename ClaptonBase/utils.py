@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
+import logging.config
 import time
-from logging.handlers import RotatingFileHandler
 try:
     from threading import _Event as Event
 except ImportError:
@@ -9,23 +9,25 @@ except ImportError:
 from .cfg import MASTER_EVENT_TIMEOUT
 
 
-def get_logger(logger_name, log_level=None, log_file=None, backup_count=1):
-    logger = logging.getLogger(logger_name)
-    if not logger.handlers:
-        if log_level is not None:
-            level = getattr(logging, log_level.upper(), logging.INFO)
-        else:
-            level = logging.INFO
-        if log_file is None:
-            handler = logging.StreamHandler()
-        else:
-            handler = RotatingFileHandler(log_file, backupCount=backup_count)
-        handler.setLevel(level)
-        fmt = ("%(asctime)s - %(process)d/%(threadName)s - " +
-               "%(name)s:%(module)s.%(funcName)s [%(levelname)s] %(message)s")
-        handler.setFormatter(logging.Formatter(fmt))
-        logger.addHandler(handler)
-        logger.setLevel(level)
+def get_logger(name, log_level=None):
+    ERROR_FORMAT = "%(lineno)d in %(filename)s at %(asctime)s: %(message)s"
+    MAIN_FORMAT = ("%(asctime)s - %(process)d/%(threadName)s - " +
+                   "%(name)s:%(module)s.%(funcName)s [%(levelname)s] %(message)s")
+    LOG_CONFIG = {'version': 1,
+                  'formatters': {'error': {'format': ERROR_FORMAT},
+                                 'info': {'format': MAIN_FORMAT},
+                                 'debug': {'format': MAIN_FORMAT}},
+                  'handlers': {'console': {'class': 'logging.StreamHandler',
+                                           'formatter': 'info',
+                                           'level': logging.DEBUG}},
+                  'root': {'handlers': ('console',), 'level': 'DEBUG'}}
+    logging.config.dictConfig(LOG_CONFIG)
+    logger = logging.getLogger(name)
+    if log_level is not None:
+        level = getattr(logging, log_level.upper(), logging.INFO)
+    else:
+        level = logging.INFO
+    logger.setLevel(level)
     return logger
 
 

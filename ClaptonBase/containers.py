@@ -8,11 +8,11 @@ from .cfg import (APP_LINE_SIZE, COMMAND_SEPARATOR, DEFAULT_BUFFER,
                   DEFAULT_EEPROM, DEFAULT_RAM_READ, DEFAULT_RAM_WRITE,
                   MEMO_READ_NAMES, MEMO_WRITE_NAMES, READ_FUNCTIONS,
                   WRITE_FUNCTIONS)
-from .exceptions import (ChecksumException, EncodeError, InvalidPackage,
-                         NodeNotExists, ReadException, TokenExeption,
-                         WriteException)
+from .exceptions import (ChecksumException, InvalidPackage,
+                         NodeNotExists, WriteException)
 from .utils import get_logger
 
+logger = get_logger('containers')
 
 class Package(object):
     """
@@ -26,7 +26,8 @@ class Package(object):
                  sender=0,
                  destination=None,
                  function=None,
-                 data=b''):
+                 data=b'',
+                 validate=True):
         """
         This class could be initialized in two ways:
             1. Make a package to be sended into the TKLan.
@@ -41,21 +42,22 @@ class Package(object):
         :type bytes_chain: bytes
         :param sender: Is te direction (or ``lan_dir`` in TKLan terminology) of the sender
             in the package. The default value is `0`, wich is the `lan_dir` of the Raspberry Pi node. The range is [0-15]
-        :type: int
+        :type sender: int
         :param destination: Is the direction of the reciver node. The range is [0-15]
-        :type: int
+        :type destination: int
         :param function: The that you want to use in the package. The range is [0-7]
-        :type: int
+        :type function: int
         :param data: The data that you want to send in the package. The format of this parametter depends on the function
             that you want to send. For more information please refer to the TKLan 2.0 documentation.
-        :type: bytes
+        :type data: bytes
 
         raises:
-            EncodeError
-            ChecksumException
-            AttributeError
-            InvalidPackage
+            * DecodeError: Raised if ``bytes_chain`` length is lower than 3, wich means that the package is incomplete and some of the decoders (`decode.sender_destination` or `decode.function_length`) will fail.
+            * ChecksumException: Raised if ``bytes_chain`` didn't include a valid checksume in the last byte.
+            * AttributeError: Raised if there's no enogh parametters to build a valid packages. If ``bytes_chain`` is not present and one of the other 3 required parametters (``sender``, ``destination`` or ``function``) is absent too theres no way to build a package.
+            * EncodeError: If any of the arguments ``sender``, ``destination`` or ``function`` don't acomplish the requirements of the TKLan protocol.
         """
+        # TODO: Reference the sentence "TKLan protocol" to a link with the TKLan docs
         if bytes_chain is not None:
             if decode.validate_checksum(bytes_chain):
                 self.checksum = bytes_chain[len(bytes_chain)-1:len(bytes_chain)]
@@ -67,8 +69,7 @@ class Package(object):
             self.data = bytes_chain[2:-1]
         elif sender is not None and \
                 destination is not None and \
-                function is not None and \
-                data is not None:
+                function is not None:
             self.sender = sender
             self.destination = destination
             self.function = function
@@ -76,8 +77,10 @@ class Package(object):
             self.length = len(self.data)
             self.checksum = None
             self.bytes_chain = self._make_byte_chain()
+            if validate:
+                self.validate()
         else:
-            raise AttributeError
+            raise AttributeError("Not enough parametters to build a package.")
         self.hexlified = binascii.hexlify(self.bytes_chain).decode()
 
     def _make_byte_chain(self):
@@ -140,14 +143,33 @@ class Package(object):
         return rta_size
 
 
-class MemoInstance(object):
+class MemoryContainer(object):
     """
-    This class contains an amount of bytes in some memory instance of a node (`RAM` or `EEPROM`) at a moment in time.
-    The bytes in an instance of this class guarantee consistency, wich means that all that values
-    coexist at the same time in the memory.
+    This class contains an amount of bytes in some memory instance of a node
+    (`RAM` or `EEPROM`) at a moment in time.
+    The bytes in an instance of this class guarantee consistency, wich means
+    that all that values coexist at the same time in the memory.
+    """
+        # TODO: Reference the sentence "TKLan protocol" to a link with the TKLan docs
 
-    """
     def __init__(self, node, instance, start, timestamp=None, data=b''):
+        """
+        :param node: The node how belongs the memory.
+        :type node: math:0 `\leqslant int \geqslant 15`
+        :param instance: the instance of the memory defined by
+        ``MEMO_READ_NAMES`` config parametters. Default: ('RAM', 'EEPROM')
+        :param start: The index in the memory of the first byte in ``data``
+        :type start: int
+        :param timestamp: Reference timestamp of when the memory was read.
+        :type timestamp: float
+        :param data: Bytes reader from the memory ``instance`` of the ``node``
+            at ``timestamp`` time.
+        :type data: bytes
+
+        raises:
+            * AttributeError when ``node`` don't acomplish the requirements
+            of the TKLan protocol or when `instance not in cfg.MEMO_READ_NAMES`.
+        """
         # contenedor dummy de atributos. Los datos no son requeridos para
         # podera armar la memoria de a dos paquetes cuando no soy master.
         if node > 15 or node < 0:
@@ -165,6 +187,9 @@ class MemoInstance(object):
         self.length = len(self.data)
 
     def as_msg(self):
+        """
+        Format the message data as will be sended through ZMQ.
+        """
         return '{1}_{2}_{3}{0}{4}{0}{5}'.format(
             COMMAND_SEPARATOR,
             self.node,
@@ -174,121 +199,253 @@ class MemoInstance(object):
             binascii.hexlify(self.data).decode())
 
     def get(self, index, default_value=None):
+        """
+        returns the bytes corresonding to the given ``index`` or ``default_value``
+        if the index doesn't corresponde with this memory instnace`
+        """
         if index < self.start or index > self.start + self.length:
             return default_value
         return self.data[index-self.start:index-self.start+1]
 
 
 class Node(object):
+    """
+    Representation of a Node in the TKLan network.
+    """
+
 
     def __init__(self,
                  lan_dir,
                  ser,
-                 is_master=False,
-                 log_level=None,
-                 log_file=None):
-        if not isinstance(lan_dir, int) or lan_dir > 15 or lan_dir < 0:
-            raise TypeError
+                 is_master=False):
+        """
+            :param lan_dir: Direction of the node in the TKLan network. This
+                will be used a ``sender`` or ``destination`` in the packages.
+            :type lan_dir: mat:`\leqslant int \geqslant`
+            :param ser: instance of a ``SerialInterface`` object
+            :type ser: SerialInterface instance
+            :param is_master: Flag that indicate where this node is master or not.
+            :type is_master: bool
 
-        # Inicio logger
-        self._logger = get_logger(__name__, log_level, log_file)
+        raises:
+            * AttributeError when ``node`` don't acomplish the requirements
+                of the TKLan protocol or when `instance not in cfg.MEMO_READ_NAMES`.
+        """
+
+        if not isinstance(lan_dir, int) or lan_dir > 15 or lan_dir < 0:
+            raise AttributeError("The node lan_dir should  be between 0 and 15")
+
         # Guardo la instancia del puerto serie.
         self._ser = ser
         # Guardo direccion. Tiene que ser un int. Si no lo tiro.
         self.lan_dir = int(lan_dir)
-        self._logger.info("Iniciando nodo {}.".format(self.lan_dir))
+        logger.info("Iniciando nodo {}.".format(self.lan_dir))
         # Si nunca lo vi el timestamp no existe.
         self.last_seen = None
         """
-            status 0: Nunca visto.
-            status 1: OK.
-            status 2: Dudoso.
-            status 3: No existe.
         """
         self._status = 0
         self.is_master = is_master  # Rol del esclavo.
 
         # Inicio con sizes estandar para poder usar hasta que el nodo sea
         # identificado.
-        self.buffer = DEFAULT_BUFFER
+        self.buffer_size = DEFAULT_BUFFER
         self.eeprom_size = DEFAULT_EEPROM
-        self.ram_read = DEFAULT_RAM_READ
-        self.ram_write = DEFAULT_RAM_WRITE
+        self.ram_read_size = DEFAULT_RAM_READ
+        self.ram_write_size = DEFAULT_RAM_WRITE
 
     @property
     def status(self):
+        # TODO: A status should be a instance of the class Status.
+        """
+        The status of the node, could be:
+            * 0: Never seen.
+            * 1: OK.
+            * 2: Quarantine. Don't see it in a while. Used only when
+            `node 0` is slave. Because he can't ask the node if exist,
+            so he has to wait until the master ask something to the
+            node in qquarantine and he response.
+            * 3: Don't exist.
+        """
         return self._status
 
     @status.setter
     def status(self, value):
         """
         :param value: int
-        :raise:
-          TypeError: si el estado no es int
+        :raises:
+          * TypeError: if ``value`` is not int si el estado no es int
         """
         if not isinstance(value, int):
             raise TypeError
         # Actualizo el estado y renuevo timestamp si el estado es 1.
-        self._logger.debug(
+        logger.debug(
             "Estado del nodo {}.".format(self.lan_dir))
         self._status = value
         if value == 1:
             self.last_seen = time.time()
 
-    def identify(self, rta_bytes_chain=None):
+    def _get_package_zero(self):
+        ask_package_zero = Package(destination=self.lan_dir, function=0)
+        package_zero = self._ser.send_package(ask_package_zero)
+        return package_zero
+
+    def _get_buffer_size(self, package_zero=b''):
+        required_byte = package_zero.data[5:6]
+        if required_byte:
+            buffer = struct.unpack('b', required_byte)[0] * 64
+        else:
+            buffer = DEFAULT_BUFFER
+        return buffer
+
+    def _get_ram_read_size(self, package_zero=b''):
+        required_byte = package_zero.data[7:8]
+        if required_byte:
+            ram_read = struct.unpack('b', required_byte)[0] * 64
+        else:
+            ram_read = DEFAULT_RAM_READ
+        return ram_read
+
+    def _get_ram_write_size(self, package_zero):
+        required_byte = package_zero.data[6:7]
+        if required_byte:
+            ram_write = struct.unpack('b', required_byte)[0] * 64
+        else:
+            ram_write = DEFAULT_RAM_WRITE
+        return ram_write
+
+    def _get_eeprom_size(self, package_zero):
+        required_byte = package_zero.data[2:3]
+        if required_byte:
+            eeprom_size = struct.unpack('b', required_byte)[0] * 64
+        else:
+            eeprom_size = DEFAULT_EEPROM
+        return eeprom_size
+
+    def identify(self, package_zero=None):
         """
-        :param rta: Una instancia de Paquete con la respuesta de la funcion 0
-        :return: None
-          AttributeError: Si rta no es None y no es una instancia de paquete o
-            no corresponde a una respuesta de la función 0
-          NodeNotExists: Si no se recibio respuesta del nodo
-          ChecksumException: Si el paquete de identificacion no es válido. Ya sea
-            porque su función no es 0 o porque la longitud de losd atos es
-            insuficiente para obtener la información que se requiere
+        :param package_zero: Answer of the node to the identification packages,
+        following the TKLan protocol. If the value is None the function will
+        send the package zero to the node to get the answer
+        :type package: Package instance
+
+        raises:
+          * AttributeError: If ``package_zero`` is not an instance of Package,
+            or is an instance of Package but doesn't correspod with the packages
+            zero.
+          * NodeNotExists: If theres no answer to package zero, wich means
+            that the node don't exist and the status is 3.
         """
 
-        self._logger.info("Identificando nodo {}.".format(self.lan_dir))
-        status = self.status
+        logger.info("Identificando nodo {}.".format(self.lan_dir))
         try:
-            if not rta_bytes_chain:
-                package = Package(destination=self.lan_dir, function=0)
-                rta = self._ser.send_package(package)
-            else:
-                rta = Package(bytes_chain=rta_bytes_chain)
-            if rta.function != 0 or len(rta.data) < 8:
-                self._logger.error("El paquete no contiene toda la información para la identificación del nodo")
-                raise InvalidPackage("No es un paquete de identificación válido")
-            self.eeprom_size = struct.unpack('b', rta.data[2:3])[0] * 64
-            self.buffer = struct.unpack('b', rta.data[5:6])[0]
-            self.ram_write = struct.unpack('b', rta.data[6:7])[0]
-            self.ram_read = struct.unpack('b', rta.data[7:8])[0]
-            status = 1
+            if not package_zero:
+                package_zero = self._get_package_zero()
+            elif package_zero.function != 0 or len(package_zero.data) < 8:
+                logger.error("package_zero is not a valid instance of a package zero")
+                raise AttributeError("package_zero is not a valid instance of a package zero")
+            self.eeprom_size = self._get_eeprom_size(package_zero)
+            self.buffer_size = self._get_buffer_size(package_zero)
+            self.ram_write_size = self._get_ram_write_size(package_zero)
+            self.ram_read_size = self._get_ram_read_size(package_zero)
+            self.status = 1
         except WriteException as e:
-            if self._ser.im_master:
-                self._logger.error("El nodo {} no existe.".format(self.lan_dir))
-                status = 3
-                raise NodeNotExists
-        finally:
-            self.status = status
+            logger.error("El nodo {} no existe.".format(self.lan_dir))
+            self.status = 3
+            raise NodeNotExists
 
     def read_ram(self, start, length):
+        """
+        Read the ram of the node.
+
+        :param start: Index of the first byte to read
+        :type start: int
+        :param length: Longitude of the bytes to read
+        :type length: int
+
+        Raises AttributeError if:
+            * The start parametter is lower than 0 or bigger than the maximum
+                index of the RAM to read (see `self._get_ram_read_size`)
+            * The length parametter is lower than 0 or bigger than the buffer size
+                (see `self._get_buffer_size`)
+        """
+        if start < 0 or start > self.ram_read_size:
+            raise AttributeError("The start index is out of range (max %s)", self.read_ram)
+        if length < 0 or length > self.buffer_size:
+            raise AttributeError("The length to read is out of range (max buffer %s)", self.buffer_size)
         return self._read_memo(start, length, instance='RAM')
 
     def write_ram(self, start, data):
+        """
+        Write the ram of the node.
+
+        :param start: Index of the first byte to write
+        :type start: int
+        :param data: Data to write in the memory from ``start``
+        :type length: bytes
+
+        Raises AttributeError if:
+            * The ``start`` parametter is lower than 0 or bigger than the maximum
+                index of the RAM to write (see `self._get_ram_write_size`)
+            * The ``data`` parametter is lower than 0 or bigger than the buffer
+                size minus 1 because of the start byte (see `self._get_buffer_size`)
+        """
+        if start < 0 or start > self.ram_write_size:
+            raise AttributeError("The start index is out of range (max %s)", self.write_ram)
+        if len(data) > self.buffer_size - 1:
+            raise AttributeError("The length of the data to write is out of range (max buffer %s)", self.buffer_size)
         return self._write_memo(start, data, instance='RAM')
 
     def read_eeprom(self, start, length):
+        """
+        Read the eeprom of the node.
+
+        :param start: Index of the first byte to read
+        :type start: int
+        :param length: Longitude of the bytes to read
+        :type length: int
+
+        Raises AttributeError if:
+            * The start parametter is lower than 0 or bigger than the maximum
+                index of the EEPROM (see `self._get_eeprom_size`)
+            * The length parametter is lower than 0 or bigger than the buffer size
+                (see `self._get_eeprom_size`)
+        """
+        if start < 0 or start > self.eeprom_size:
+            raise AttributeError("The start index is out of range (max %s)", self.eeprom_size)
+        if length < 0 or length > self.buffer_size:
+            raise AttributeError("The length to read is out of range (max buffer %s)", self.buffer_size)
         return self._read_memo(start, length, instance='EEPROM')
 
     def write_eeprom(self, start, data):
+        """
+        Write the eeprom of the node.
+
+        :param start: Index of the first byte to write
+        :type start: int
+        :param data: Data to write in the memory from ``start``
+        :type length: bytes
+
+        Raises AttributeError if:
+            * The ``start`` parametter is lower than 0 or bigger than the maximum
+                index of the RAM to write (see `self._get_eeprom_size`)
+            * The ``data`` parametter is lower than 0 or bigger than the buffer
+                size minus 1 because of the start byte (see `self._get_buffer_size`)
+        """
+        if start < 0 or start > self.eeprom_size:
+            raise AttributeError("The start index is out of range (max %s)", self.eeprom_size)
+        if len(data) > self.buffer_size - 1:
+            raise AttributeError("The length of the data to write is out of range (max buffer %s)", self.buffer_size)
         return self._write_memo(start, data, instance='EEPROM')
 
     def _make_streaming_packages(self, indexes, instance):
+        """Really don't know what is this for"""
+        # TODO: What is this function for?
         end = -1
         packages = list()
         for i in sorted(indexes):
             if i > end:
-                end = min(indexes, key=lambda x:i+self.buffer-x if x < i+self.buffer else sys.maxsize)
+                end = min(indexes, key=lambda x:i+self.buffer_size-x if x < i+self.buffer else sys.maxsize)
                 packages.append(Package(destination=self.lan_dir,
                                         function=MEMO_READ_NAMES[instance],
                                         data=struct.pack('2b', i, end-i+1)))
@@ -296,28 +453,33 @@ class Node(object):
 
     def _read_memo(self, start, length, instance):
         """
+        Read some memory instance from the node.
 
-        :param inicio: int que indica el indice de incio de memoria que se
-        quiere leer
-        :param longitud: int que indica la longitud en bytes que se quiere leer
-        :param instance: str que indica la instancia de la memoria que se
-        quiere leer (RAM o EEPROM)
-        :return: Lista de memo_instances para cada uno de los valores leidos
-        :raise:
-          KeyError: Si ``instance`` no es ni `RAM` ni `EEPROM`
-          InvalidPackage: Si ``start`` o ``length`` son mayores a 255
+        :param start: Index of the first byte to read
+        :type start: int
+        :param length: Longitude of the bytes to read
+        :type length: int
+        :param instance: Instance of the memory to read
+        :atype instance: str
+
+        :return: MemoryContainer instance
+
+        :raises:
+          * KeyError: When `instance not in cfg.MEMO_READ_NAMES`
+          * AttributeError: If is not possible build a package with the
+            ``start`` and ``length`` following the TKLan protocol
         """
 
-        self._logger.debug("Leyendo memoria del nodo {}.".format(self.lan_dir))
+        logger.debug("Leyendo memoria del nodo {}.".format(self.lan_dir))
         try:
             read_package = Package(destination=self.lan_dir,
                                    function=MEMO_READ_NAMES[instance],
                                    data=struct.pack('2B', start, length))
         except struct.error as e:
-            raise InvalidPackage
+            raise AttributeError
 
         rta = self._ser.send_package(read_package)
-        return MemoInstance(node=rta.sender,
+        return MemoryContainer(node=rta.sender,
                             instance=instance,
                             start=start,
                             timestamp=time.time(),
@@ -325,37 +487,39 @@ class Node(object):
 
     def _write_memo(self, start, data, instance):
         """
-        :param inicio: int Indice indicando a partir de que registro de la
-        memoria se quiere escribir
-        :param datos: str datos que se quieren escribir en hexadecimal
-        :param instance: str que indica la instancia de la memoria que se
-        quiere escribir (RAM o EEPROM)
-        :return: None
-        :raise:
-          InvalidPackage: Si ``start`` es mayor de 255
-          KeyError: Si ``instance`` no hace referencia a `RAM` o `EEPROM`
-          TypeError: Si ``data`` no es de tipo bytes
+        Read some memory instance from the node.
+
+        :param start: Index of the first byte to write
+        :type start: int
+        :param data: Data to write in the memory from ``start``
+        :type data: bytes
+        :param instance: Instance of the memory to write
+        :atype instance: str
+
+        :raises:
+          * KeyError: When `instance not in cfg.MEMO_READ_NAMES`
+          * AttributeError: If is not possible build a package with the
+            ``start`` and ``data`` following the TKLan protocol
         """
 
-        self._logger.info(
-            "Escribiendo datos {0} en nodo {1}.".format(
-                binascii.hexlify(data), self.lan_dir))
+        logger.info("Escribiendo datos {0} en nodo {1}.".format(binascii.hexlify(data),
+                                                                self.lan_dir))
         try:
             writed_package = Package(destination=self.lan_dir,
                                      function=MEMO_WRITE_NAMES[instance],
                                      data=struct.pack('B', start) + data)
         except struct.error:
-            raise InvalidPackage
+            raise AttributeError
         answer_package = self._ser.send_package(writed_package)
         return writed_package, answer_package
 
-    def __dir__(self):
+    def __dict__(self):
         return {
             'lan_dir': self.lan_dir,
             'status': self.status,
-            'buffer': self.buffer,
-            'ram_read': self.ram_read,
-            'ram_write': self.ram_write,
+            'buffer': self.buffer_size,
+            'ram_read': self.ram_read_size,
+            'ram_write': self.ram_write_size,
             'eeprom_size': self.eeprom_size,
             'is_master': self.is_master,
             'time': time.time(),

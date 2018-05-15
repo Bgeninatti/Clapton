@@ -302,7 +302,7 @@ class SerialInterface(object):
         self._ser.flushInput()
         while time.time() < timeout:
             bytes_chain += self._ser.read()
-        self.im_master = len(bytes_chain) > 0
+        self.im_master = len(bytes_chain) == 0
         if not ser_locked:
             self.using_ser.release()
         logger.info('Chequeo del master: %s', self.im_master)

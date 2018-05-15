@@ -300,7 +300,7 @@ class SerialInterface(object):
         timeout = time.time() + WAIT_MASTER_PERIOD
         bytes_chain = b''
         self._ser.flushInput()
-        while time.time() > timeout:
+        while time.time() < timeout:
             bytes_chain += self._ser.read()
         self.im_master = len(bytes_chain) > 0
         if not ser_locked:

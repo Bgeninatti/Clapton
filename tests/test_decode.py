@@ -24,7 +24,9 @@ def test_sender_destination_raises_decode_error(bad_byte):
 @pytest.mark.parametrize("head_byte,expected", [
     (b'\xff', (7, 31)),
     (b'x', (3, 24)),
-    (b'\x90', (4, 8)),
+    (b'\x88', (4, 8)),
+    (b'\x1f', (0, 31)),
+    (b'\x01', (0, 1)),
 ])
 def test_function_length_ok(head_byte, expected):
     assert decode.function_length(head_byte), expected

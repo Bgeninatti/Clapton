@@ -24,7 +24,7 @@ def function_length(function, length):
     if function > 7 or length > 31:
         raise EncodeError
     bits = bitarray(bin(function)[2:].zfill(3))
-    bits.extend(bin(length)[2:])
+    bits.extend(bin(length)[2:].zfill(5))
     return bits.tobytes()
 
 

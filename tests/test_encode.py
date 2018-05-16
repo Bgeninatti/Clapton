@@ -35,7 +35,7 @@ def test_sender_destination_encode_error(bad_sender, bad_destination):
 @pytest.mark.parametrize("function,length,expected", [
     (7, 31, b'\xff'),
     (3, 24, b'x'),
-    (4, 8, b'\x90'),
+    (4, 8, b'\x88'),
 ])
 def test_function_length_ok(function, length, expected):
     assert encode.function_length(function, length) == expected

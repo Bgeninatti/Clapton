@@ -160,9 +160,7 @@ class SerialInterface(object):
         head_bytes = self._ser.read(2)
         if len(head_bytes) < 2:
             raise ReadException
-        print(head_bytes[1:2])
         function, length = decode.function_length(head_bytes[1:2])
-        print("Longitud {}".format(length))
         tail_bytes = self._ser.read(length+1)
         readed_package = Package(bytes_chain=head_bytes+tail_bytes)
         return readed_package

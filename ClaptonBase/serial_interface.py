@@ -10,8 +10,7 @@ from threading import Lock, Thread
 import serial
 
 from . import decode
-from .cfg import (DEFAULT_BAUDRATE, DEFAULT_LOG_FILE, DEFAULT_LOG_LVL,
-                  DEFAULT_SERIAL_TIMEOUT, WAIT_MASTER_PERIOD)
+from . import cfg
 from .containers import Package
 from .exceptions import (ChecksumException, DecodeError, NoMasterException,
                          NoSlaveException, ReadException, SerialConfigError,
@@ -40,10 +39,10 @@ class SerialInterface(object):
 
     def __init__(self,
                  serial_port='/dev/ttyAMA0',
-                 baudrate=DEFAULT_BAUDRATE,
-                 timeout=DEFAULT_SERIAL_TIMEOUT,
-                 log_level=DEFAULT_LOG_LVL,
-                 log_file=DEFAULT_LOG_FILE):
+                 baudrate=cfg.DEFAULT_BAUDRATE,
+                 timeout=cfg.DEFAULT_SERIAL_TIMEOUT,
+                 log_level=cfg.DEFAULT_LOG_LVL,
+                 log_file=cfg.DEFAULT_LOG_FILE):
         """
         This class initialize with the information about
         where connect (``serial_port``), at what speed (``baudrate``)
@@ -187,15 +186,24 @@ class SerialInterface(object):
         if not self.im_master:
             raise NoMasterException
         logger.debug("Esperando disponibilidad de puerto serie.")
+        tries = 0
         with self.using_ser:
-            self._ser.flushInput()
-            self._ser.write(package.bytes_chain)
-            echo_package = self.get_package_from_length(len(package.bytes_chain))
-            try:
-                response_package = self.get_package_on_the_fly()
-                return response_package
-            except (ReadException, ChecksumException) as e:
-                raise WriteException
+            while 1:
+                try:
+                    self._ser.flushInput()
+                    self._ser.write(package.bytes_chain)
+                    echo_package = self.get_package_from_length(len(package.bytes_chain))
+                    try:
+                        response_package = self.get_package_on_the_fly()
+                        return response_package
+                    except (ReadException, ChecksumException) as e:
+                            raise WriteException
+                except (WriteException, ReadException, ChecksumException) as error:
+                    if tries < cfg.SEND_PACKAGE_TRIES:
+                        tries += 1
+                        logger.error(error)
+                    else:
+                        raise error
 
     def listen_packages(self):
         """
@@ -227,8 +235,8 @@ class SerialInterface(object):
                     package = Package(bytes_chain=bytes_chain[:package_length])
                     bytes_chain = bytes_chain[package_length:]
 
-                    if self.want_master.isSet() and package.funcion == 7 and not len(bytes_chain):
-                        self.acept_token(package.sender)
+                    if self.want_master.isSet() and package.function == 7 and not len(bytes_chain):
+                        self.accept_token(package.sender)
                         self.check_master(ser_locked=True)
                         if self.im_master:
                             self.want_master.clear()
@@ -295,7 +303,7 @@ class SerialInterface(object):
         """
         if not ser_locked:
             self.using_ser.acquire()
-        timeout = time.time() + WAIT_MASTER_PERIOD
+        timeout = time.time() + cfg.WAIT_MASTER_PERIOD
         bytes_chain = b''
         self._ser.flushInput()
         while time.time() < timeout:

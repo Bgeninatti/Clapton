@@ -24,7 +24,7 @@ def get_logger(name, log_level=None):
     logging.config.dictConfig(LOG_CONFIG)
     logger = logging.getLogger(name)
     if log_level is not None:
-        level = getattr(logging, log_level.upper(), logging.INFO)
+        level = getattr(logging, log_level.upper(), logging.DEBUG)
     else:
         level = logging.INFO
     logger.setLevel(level)

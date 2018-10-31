@@ -14,11 +14,10 @@ loggers = {}
 def get_logger(name, log_level=None):
     if name in loggers.keys():
         return loggers[name]
-    ERROR_FORMAT = "%(lineno)d in %(filename)s at %(asctime)s: %(message)s"
-    MAIN_FORMAT = ("%(asctime)s - %(process)d/%(threadName)s - " +
-                   "%(name)s:%(module)s.%(funcName)s [%(levelname)s] %(message)s")
+    MAIN_FORMAT = ("%(asctime)s - %(process)d/%(threadName)s - %(lineno)d in %(filename)s" +
+                   " [%(levelname)s] %(message)s")
     LOG_CONFIG = {'version': 1,
-                  'formatters': {'error': {'format': ERROR_FORMAT},
+                  'formatters': {'error': {'format': MAIN_FORMAT},
                                  'info': {'format': MAIN_FORMAT},
                                  'debug': {'format': MAIN_FORMAT}},
                   'handlers': {'console': {'class': 'logging.StreamHandler',

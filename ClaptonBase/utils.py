@@ -9,7 +9,11 @@ except ImportError:
 from .cfg import MASTER_EVENT_TIMEOUT
 
 
+loggers = {}
+
 def get_logger(name, log_level=None):
+    if name in loggers.keys():
+        return loggers[name]
     ERROR_FORMAT = "%(lineno)d in %(filename)s at %(asctime)s: %(message)s"
     MAIN_FORMAT = ("%(asctime)s - %(process)d/%(threadName)s - " +
                    "%(name)s:%(module)s.%(funcName)s [%(levelname)s] %(message)s")
@@ -28,6 +32,7 @@ def get_logger(name, log_level=None):
     else:
         level = logging.INFO
     logger.setLevel(level)
+    loggers[name] = logger
     return logger
 
 

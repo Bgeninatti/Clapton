@@ -6,12 +6,12 @@ try:
     from threading import _Event as Event
 except ImportError:
     from threading import Event
-from .cfg import MASTER_EVENT_TIMEOUT
+from . import cfg
 
 
 loggers = {}
 
-def get_logger(name, log_level=None):
+def get_logger(name):
     if name in loggers.keys():
         return loggers[name]
     MAIN_FORMAT = ("%(asctime)s - %(process)d/%(threadName)s - %(lineno)d in %(filename)s" +
@@ -22,15 +22,11 @@ def get_logger(name, log_level=None):
                                  'debug': {'format': MAIN_FORMAT}},
                   'handlers': {'console': {'class': 'logging.StreamHandler',
                                            'formatter': 'info',
-                                           'level': logging.DEBUG}},
+                                           'level': cfg.LOG_LEVEL}},
                   'root': {'handlers': ('console',), 'level': 'DEBUG'}}
     logging.config.dictConfig(LOG_CONFIG)
     logger = logging.getLogger(name)
-    if log_level is not None:
-        level = getattr(logging, log_level.upper(), logging.DEBUG)
-    else:
-        level = logging.INFO
-    logger.setLevel(level)
+    logger.setLevel(cfg.LOG_LEVEL)
     loggers[name] = logger
     return logger
 
@@ -43,7 +39,7 @@ class MasterEvent(Event):
 
     def set(self, *args, **kwargs):
         super(MasterEvent, self).set()
-        self.timeout = time.time() + MASTER_EVENT_TIMEOUT
+        self.timeout = time.time() + cfg.MASTER_EVENT_TIMEOUT
 
     def clear(self, *args, **kwargs):
         self.timeout = None

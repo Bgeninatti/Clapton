@@ -189,8 +189,8 @@ class SerialInterface(object):
             while 1:
                 try:
                     self._ser.flushInput()
-                    self._ser.write(bytes(package))
-                    echo_package = self.get_package_from_length(len(bytes(package)))
+                    self._ser.write(package.bytes_chain)
+                    echo_package = self.get_package_from_length(len(package.bytes_chain))
                     try:
                         response_package = self.get_package_on_the_fly()
                         return response_package
@@ -264,11 +264,10 @@ class SerialInterface(object):
 
         """
         logger.info('Aceptando oferta de token.')
-        package = Package(destination=sender, function=7)
-        self._ser.write(bytes(package))
-        echo_package = self.get_package_from_length(len(bytes(package)))
-        response = self.get_package_from_length(package.get_rta_size())
-        return response
+        token_rta = Package(destination=sender, function=7)
+        self._ser.write(token_rta.bytes_chain)
+        echo_package = self.get_package_from_length(len(token_rta.bytes_chain))
+        response = self.get_package_from_length(token_rta.rta_size)
 
     def offer_token(self, destination):
         """
@@ -280,10 +279,10 @@ class SerialInterface(object):
         """
 
         logger.info("Ofreciendo token al nodo {}.".format(destination))
-        package = Package(destination=destination, function=7)
-        self._ser.write(bytes(package))
-        echo_package = self.get_package_from_length(len(bytes(package)))
-        response = self.get_package_from_length(package.get_rta_size())
+        token_offer = Package(destination=destination, function=7)
+        self._ser.write(token_offer.bytes_chain)
+        echo_package = self.get_package_from_length(len(token_offer.bytes_chain))
+        response = self.get_package_from_length(token_offer.rta_size)
         self.check_master()
         if self.im_master:
             logger.error("Error en traspaso de master al nodo {}.".format(self.lan_dir))

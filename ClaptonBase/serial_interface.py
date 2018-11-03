@@ -267,7 +267,7 @@ class SerialInterface(object):
         package = Package(destination=sender, function=7)
         self._ser.write(bytes(package))
         echo_package = self.get_package_from_length(len(bytes(package)))
-        response = self.get_package_from_length(package.rta_size)
+        response = self.get_package_from_length(package.get_rta_size())
         return response
 
     def offer_token(self, destination):
@@ -283,7 +283,7 @@ class SerialInterface(object):
         package = Package(destination=destination, function=7)
         self._ser.write(bytes(package))
         echo_package = self.get_package_from_length(len(bytes(package)))
-        response = self.get_package_from_length(package.rta_size)
+        response = self.get_package_from_length(package.get_rta_size())
         self.check_master()
         if self.im_master:
             logger.error("Error en traspaso de master al nodo {}.".format(self.lan_dir))

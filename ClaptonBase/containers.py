@@ -60,14 +60,14 @@ class Package(object):
         # TODO: Reference the sentence "TKLan protocol" to a link with the TKLan docs
         self._bytes = bytes_chain
         self.hexlified = binascii.hexlify(self._bytes).decode()
-        if bytes_chain:
-            if decode.validate_checksum(bytes_chain):
-                self.checksum = bytes_chain[len(bytes_chain)-1:len(bytes_chain)]
+        if self._bytes:
+            if decode.validate_checksum(self._bytes):
+                self.checksum = self._bytes[len(self._bytes)-1:len(self._bytes)]
             else:
-                raise ChecksumException
-            self.sender, self.destination = decode.sender_destination(bytes_chain[0:1])
-            self.function, self.length = decode.function_length(bytes_chain[1:2])
-            self.data = bytes_chain[2:-1]
+                raise ChecksumException()
+            self.sender, self.destination = decode.sender_destination(self._bytes[0:1])
+            self.function, self.length = decode.function_length(self._bytes[1:2])
+            self.data = self._bytes[2:-1]
         elif sender is not None and \
                 destination is not None and \
                 function is not None:
@@ -83,7 +83,6 @@ class Package(object):
         else:
             raise AttributeError(
                 "Not enough parametters to build a package.")
-        self.rta_size = self._get_rta_size()
 
     def __bytes__(self):
         return self._bytes
@@ -120,7 +119,7 @@ class Package(object):
                 'Las funciones de escritura de aplicacion siempre tienen que '
                 'tener longitud de datos mayor a 1.')
 
-    def _get_rta_size(self):
+    def get_rta_size(self):
         """
         Calcula tamanio de la respuesta segun la funcion del paquete
         Llegada a esta instancia la funcion ya fue validad y se asegura que

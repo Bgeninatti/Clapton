@@ -138,18 +138,7 @@ class SerialInterface(object):
                     'Perdimos la conexion con el puerto serie. Reconectando...')
                 self._do_connect()
 
-    def get_package_from_length(self, length):
-        bytes_chain = self._ser.read(length)
-        if len(bytes_chain) < length:
-            raise ReadException()
-        try:
-            readed_package = Package(bytes_chain=bytes_chain)
-        except (ChecksumException, DecodeError) as e:
-            logger.error('No se obtuvo un paquete válido de %s bytes.', length)
-            raise ReadException()
-        return readed_package
-
-    def get_package_on_the_fly(self):
+    def listen_package(self):
         """
         Try to listen an entire package from the up comming bytes in the serial port.
         If the checkum is not write raises ReadException
@@ -192,7 +181,7 @@ class SerialInterface(object):
                     self._ser.write(bytes(package))
                     echo_package = self.get_package_from_length(len(bytes(package)))
                     try:
-                        response_package = self.get_package_on_the_fly()
+                        response_package = self.listen_package()
                         return response_package
                     except (ReadException, ChecksumException) as error:
                             raise WriteException()
@@ -267,7 +256,7 @@ class SerialInterface(object):
         package = Package(destination=sender, function=7)
         self._ser.write(bytes(package))
         echo_package = self.get_package_from_length(len(bytes(package)))
-        response = self.get_package_from_length(package.get_rta_size())
+        response = self.listen_package()
         return response
 
     def offer_token(self, destination):
@@ -283,7 +272,7 @@ class SerialInterface(object):
         package = Package(destination=destination, function=7)
         self._ser.write(bytes(package))
         echo_package = self.get_package_from_length(len(bytes(package)))
-        response = self.get_package_from_length(package.get_rta_size())
+        response = self.listen_package()
         self.check_master()
         if self.im_master:
             logger.error("Error en traspaso de master al nodo {}.".format(self.lan_dir))

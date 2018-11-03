@@ -190,7 +190,7 @@ class SerialInterface(object):
                 try:
                     self._ser.flushInput()
                     self._ser.write(bytes(package))
-                    echo_package = self.get_package_from_length(len(bytes(package))
+                    echo_package = self.get_package_from_length(len(bytes(package)))
                     try:
                         response_package = self.get_package_on_the_fly()
                         return response_package

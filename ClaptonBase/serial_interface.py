@@ -179,7 +179,7 @@ class SerialInterface(object):
                 try:
                     self._ser.flushInput()
                     self._ser.write(bytes(package))
-                    echo_package = self.get_package_from_length(len(bytes(package)))
+                    echo_package = self.listen_package()
                     try:
                         response_package = self.listen_package()
                         return response_package
@@ -255,7 +255,7 @@ class SerialInterface(object):
         logger.info('Aceptando oferta de token.')
         package = Package(destination=sender, function=7)
         self._ser.write(bytes(package))
-        echo_package = self.get_package_from_length(len(bytes(package)))
+        echo_package = self.listen_package()
         response = self.listen_package()
         return response
 
@@ -271,7 +271,7 @@ class SerialInterface(object):
         logger.info("Ofreciendo token al nodo {}.".format(destination))
         package = Package(destination=destination, function=7)
         self._ser.write(bytes(package))
-        echo_package = self.get_package_from_length(len(bytes(package)))
+        echo_package = self.listen_package()
         response = self.listen_package()
         self.check_master()
         if self.im_master:

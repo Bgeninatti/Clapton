@@ -22,7 +22,7 @@ class Package(object):
     """
 
     def __init__(self,
-                 bytes_chain=None,
+                 bytes_chain=b'',
                  sender=0,
                  destination=None,
                  function=None,
@@ -58,12 +58,13 @@ class Package(object):
             * EncodeError: If any of the arguments ``sender``, ``destination`` or ``function`` don't acomplish the requirements of the TKLan protocol.
         """
         # TODO: Reference the sentence "TKLan protocol" to a link with the TKLan docs
-        if bytes_chain is not None:
+        self._bytes = bytes_chain
+        self.hexlified = binascii.hexlify(self._bytes).decode()
+        if bytes_chain:
             if decode.validate_checksum(bytes_chain):
                 self.checksum = bytes_chain[len(bytes_chain)-1:len(bytes_chain)]
             else:
                 raise ChecksumException
-            self.bytes_chain = bytes_chain
             self.sender, self.destination = decode.sender_destination(bytes_chain[0:1])
             self.function, self.length = decode.function_length(bytes_chain[1:2])
             self.data = bytes_chain[2:-1]
@@ -76,12 +77,14 @@ class Package(object):
             self.data = data
             self.length = len(self.data)
             self.checksum = None
-            self.bytes_chain = self._make_byte_chain()
+            self._bytes = self._make_byte_chain()
             if validate:
                 self.validate()
         else:
             raise AttributeError("Not enough parametters to build a package.")
-        self.hexlified = binascii.hexlify(self.bytes_chain).decode()
+
+    def __bytes__(self):
+        return self._bytes
 
     def _make_byte_chain(self):
         first_byte = encode.sender_destination(self.sender, self.destination)

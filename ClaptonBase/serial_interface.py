@@ -14,7 +14,7 @@ from . import cfg
 from .containers import Package
 from .exceptions import (ChecksumException, DecodeError, NoMasterException,
                          NoSlaveException, ReadException, SerialConfigError,
-                         WriteException)
+                         WriteException, TokenException)
 from .utils import GiveMasterEvent, MasterEvent, get_logger
 
 
@@ -40,9 +40,7 @@ class SerialInterface(object):
     def __init__(self,
                  serial_port='/dev/ttyAMA0',
                  baudrate=cfg.DEFAULT_BAUDRATE,
-                 timeout=cfg.DEFAULT_SERIAL_TIMEOUT,
-                 log_level=cfg.DEFAULT_LOG_LVL,
-                 log_file=cfg.DEFAULT_LOG_FILE):
+                 timeout=cfg.DEFAULT_SERIAL_TIMEOUT):
         """
         This class initialize with the information about
         where connect (``serial_port``), at what speed (``baudrate``)
@@ -123,7 +121,7 @@ class SerialInterface(object):
         except (serial.SerialException, OSError) as e:
             logger.error(
                 'Error intentando abrir el puerto serie: %s', str(e))
-            raise SerialConfigError
+            raise SerialConfigError()
         return self.isOpen()
 
     def _connection(self):
@@ -143,12 +141,12 @@ class SerialInterface(object):
     def get_package_from_length(self, length):
         bytes_chain = self._ser.read(length)
         if len(bytes_chain) < length:
-            raise ReadException
+            raise ReadException()
         try:
             readed_package = Package(bytes_chain=bytes_chain)
         except (ChecksumException, DecodeError) as e:
             logger.error('No se obtuvo un paquete válido de %s bytes.', length)
-            raise ReadException
+            raise ReadException()
         return readed_package
 
     def get_package_on_the_fly(self):
@@ -158,7 +156,7 @@ class SerialInterface(object):
         """
         head_bytes = self._ser.read(2)
         if len(head_bytes) < 2:
-            raise ReadException
+            raise ReadException()
         function, length = decode.function_length(head_bytes[1:2])
         tail_bytes = self._ser.read(length+1)
         readed_package = Package(bytes_chain=head_bytes+tail_bytes)
@@ -184,7 +182,7 @@ class SerialInterface(object):
             * WriteException: In case that the node don't answer.
         """
         if not self.im_master:
-            raise NoMasterException
+            raise NoMasterException()
         logger.debug("Esperando disponibilidad de puerto serie.")
         tries = 0
         with self.using_ser:
@@ -196,8 +194,8 @@ class SerialInterface(object):
                     try:
                         response_package = self.get_package_on_the_fly()
                         return response_package
-                    except (ReadException, ChecksumException) as e:
-                            raise WriteException
+                    except (ReadException, ChecksumException) as error:
+                            raise WriteException()
                 except (WriteException, ReadException, ChecksumException) as error:
                     if tries < cfg.SEND_PACKAGE_TRIES:
                         tries += 1
@@ -251,7 +249,7 @@ class SerialInterface(object):
                     self.check_master(ser_locked=True)
                     if self.im_master and not self.want_master.isSet():
                         self.want_master.clear()
-                        raise NoSlaveException
+                        raise NoSlaveException()
 
     def accept_token(self, sender):
         """
@@ -288,7 +286,7 @@ class SerialInterface(object):
         self.check_master()
         if self.im_master:
             logger.error("Error en traspaso de master al nodo {}.".format(self.lan_dir))
-            raise TokenException
+            raise TokenException()
 
     def check_master(self, ser_locked=False):
         """

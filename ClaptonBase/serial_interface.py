@@ -266,8 +266,8 @@ class SerialInterface(object):
         logger.info('Aceptando oferta de token.')
         package = Package(destination=sender, function=7)
         self._ser.write(bytes(package))
-        echo_package = self.get_package_from_length(len(bytes(token_rta))
-        response = self.get_package_from_length(token_rta.rta_size)
+        echo_package = self.get_package_from_length(len(bytes(package)))
+        response = self.get_package_from_length(package.rta_size)
         return response
 
     def offer_token(self, destination):

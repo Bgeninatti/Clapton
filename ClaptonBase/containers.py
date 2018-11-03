@@ -81,7 +81,9 @@ class Package(object):
             if validate:
                 self.validate()
         else:
-            raise AttributeError("Not enough parametters to build a package.")
+            raise AttributeError(
+                "Not enough parametters to build a package.")
+        self.rta_size = self._get_rta_size()
 
     def __bytes__(self):
         return self._bytes
@@ -118,7 +120,7 @@ class Package(object):
                 'Las funciones de escritura de aplicacion siempre tienen que '
                 'tener longitud de datos mayor a 1.')
 
-    def get_rta_size(self):
+    def _get_rta_size(self):
         """
         Calcula tamanio de la respuesta segun la funcion del paquete
         Llegada a esta instancia la funcion ya fue validad y se asegura que

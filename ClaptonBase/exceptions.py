@@ -84,7 +84,7 @@ class NoSlaveException(Exception):
         super(NoSlaveException, self).__init__(NoSlaveException.error_msg)
 
 
-class TokenExeption(Exception):
+class TokenException(Exception):
 
     code = 301
     error_msg = 'Error en respuesta u oferta de token.'

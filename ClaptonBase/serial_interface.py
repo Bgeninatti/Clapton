@@ -138,18 +138,7 @@ class SerialInterface(object):
                     'Perdimos la conexion con el puerto serie. Reconectando...')
                 self._do_connect()
 
-    def get_package_from_length(self, length):
-        bytes_chain = self._ser.read(length)
-        if len(bytes_chain) < length:
-            raise ReadException()
-        try:
-            readed_package = Package(bytes_chain=bytes_chain)
-        except (ChecksumException, DecodeError) as e:
-            logger.error('No se obtuvo un paquete válido de %s bytes.', length)
-            raise ReadException()
-        return readed_package
-
-    def get_package_on_the_fly(self):
+    def listen_package(self):
         """
         Try to listen an entire package from the up comming bytes in the serial port.
         If the checkum is not write raises ReadException
@@ -191,8 +180,10 @@ class SerialInterface(object):
                     self._ser.flushInput()
                     self._ser.write(package.bytes_chain)
                     echo_package = self.get_package_from_length(len(package.bytes_chain))
+                    self._ser.write(bytes(package))
+                    echo_package = self.listen_package()
                     try:
-                        response_package = self.get_package_on_the_fly()
+                        response_package = self.listen_package()
                         return response_package
                     except (ReadException, ChecksumException) as error:
                             raise WriteException()
@@ -268,6 +259,11 @@ class SerialInterface(object):
         self._ser.write(token_rta.bytes_chain)
         echo_package = self.get_package_from_length(len(token_rta.bytes_chain))
         response = self.get_package_from_length(token_rta.rta_size)
+        package = Package(destination=sender, function=7)
+        self._ser.write(bytes(package))
+        echo_package = self.listen_package()
+        response = self.listen_package()
+        return response
 
     def offer_token(self, destination):
         """
@@ -283,6 +279,10 @@ class SerialInterface(object):
         self._ser.write(token_offer.bytes_chain)
         echo_package = self.get_package_from_length(len(token_offer.bytes_chain))
         response = self.get_package_from_length(token_offer.rta_size)
+        package = Package(destination=destination, function=7)
+        self._ser.write(bytes(package))
+        echo_package = self.listen_package()
+        response = self.listen_package()
         self.check_master()
         if self.im_master:
             logger.error("Error en traspaso de master al nodo {}.".format(self.lan_dir))

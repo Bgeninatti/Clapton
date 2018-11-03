@@ -115,33 +115,6 @@ class Package(object):
                 'Las funciones de escritura de aplicacion siempre tienen que '
                 'tener longitud de datos mayor a 1.')
 
-    def get_rta_size(self):
-        """
-        Calcula tamanio de la respuesta segun la funcion del paquete
-        Llegada a esta instancia la funcion ya fue validad y se asegura que
-        esta no es mayor a 8, sin embargo excepcion de InvalidPackage se
-        establece igual
-        """
-        rta_size = None
-        if self.function == 0:
-            rta_size = 13
-        elif self.function in READ_FUNCTIONS:
-            _, length = struct.unpack('2B', self.data)
-            rta_size = 3 + length
-        elif self.function in WRITE_FUNCTIONS:
-            rta_size = 3 + self.length
-        elif self.function == 5:
-            start, length = struct.unpack('Hb', self.data)
-            rta_size = length*2 + 3
-        elif self.function == 6:
-            if self.data == b'\x00\x00\xa5\x05':
-                rta_size = 4
-            # el dos es por la direccion y el 3 por el resto del paquete.
-            rta_size = APP_LINE_SIZE + 2 + 3
-        else:
-            rta_size = 3
-        return rta_size
-
 
 class MemoryContainer(object):
     """

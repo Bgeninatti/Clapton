@@ -151,6 +151,11 @@ class SerialInterface(object):
         readed_package = Package(bytes_chain=head_bytes+tail_bytes)
         return readed_package
 
+    def get_package_from_length(self, length):
+        bytes_chain = self._ser.read(length)
+        package = Package(bytes_chain=bytes_chain)
+        return package
+
     def send_package(self, package):
         """
         In case that you where master (``im_master = True``) you are allowed to
@@ -258,7 +263,8 @@ class SerialInterface(object):
         token_rta = Package(destination=sender, function=7)
         self._ser.write(token_rta.bytes_chain)
         echo_package = self.get_package_from_length(len(token_rta.bytes_chain))
-        response = self.get_package_from_length(token_rta.rta_size)
+        response = self.get_package_from_length(
+            cfg.TOKEN_ACCEPTANCE_RTA_SIZE)
         package = Package(destination=sender, function=7)
         self._ser.write(bytes(package))
         echo_package = self.listen_package()
@@ -278,14 +284,17 @@ class SerialInterface(object):
         token_offer = Package(destination=destination, function=7)
         self._ser.write(token_offer.bytes_chain)
         echo_package = self.get_package_from_length(len(token_offer.bytes_chain))
-        response = self.get_package_from_length(token_offer.rta_size)
+        response = self.get_package_from_length(
+            cfg.TOKEN_OFFER_RTA_SIZE)
         package = Package(destination=destination, function=7)
         self._ser.write(bytes(package))
         echo_package = self.listen_package()
         response = self.listen_package()
         self.check_master()
         if self.im_master:
-            logger.error("Error en traspaso de master al nodo {}.".format(self.lan_dir))
+            logger.error(
+                "Error en traspaso de master al nodo %s.",
+                destination)
             raise TokenException()
 
     def check_master(self, ser_locked=False):

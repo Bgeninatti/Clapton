@@ -184,8 +184,6 @@ class SerialInterface(object):
                 try:
                     self._ser.flushInput()
                     self._ser.write(package.bytes_chain)
-                    echo_package = self.get_package_from_length(len(package.bytes_chain))
-                    self._ser.write(bytes(package))
                     echo_package = self.listen_package()
                     try:
                         response_package = self.listen_package()

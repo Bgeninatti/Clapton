@@ -69,6 +69,7 @@ class TKLanServer(Thread):
         while not self.stop:
             try:
                 msg = self.commands_socket.recv_json(zmq.NOBLOCK)
+                logger.info("Message received: message=%s", msg)
                 request = Package(
                     sender=msg['sender'],
                     destination=msg['destination'],
@@ -78,11 +79,16 @@ class TKLanServer(Thread):
                 )
                 self.publisher_socket.send_json(request)
                 response = self.ser.send_package(request)
-                self.commands_socket.send_json(dict(response))
-                self.publisher_socket.send_json(dict(request))
+                logger.info("Sending response: sender=%s, destination=%s, length=%s, function=%s",
+                            response.sender,
+                            response.destination,
+                            response.length,
+                            response.function)
+                self.commands_socket.send_json(response.to_dict())
+                self.publisher_socket.send_json(request.to_dict())
             except Exception as error:
                 error = traceback.format_exc().split('\n')
-                logger.critical(';'.join(error))
+                logger.error(';'.join(error))
                 msg['error'] = error
                 self.commands_socket.send_json(msg)
 

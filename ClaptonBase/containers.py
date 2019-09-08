@@ -88,13 +88,13 @@ class Package(object):
         self.checksum = encode.make_checksum(first_byte + second_byte + self.data)
         return first_byte + second_byte + self.data + self.checksum
 
-    def __dict__(self):
+    def to_dict(self):
         return {
             'sender': self.sender,
             'destination': self.destination,
             'function': self.function,
             'length': self.length,
-            'data': binascii.hexlify(self.data).decode(),
+            'data': self.hexlified,
             'checksum': binascii.hexlify(self.checksum).decode()
         }
 

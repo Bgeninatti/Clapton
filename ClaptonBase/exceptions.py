@@ -25,46 +25,6 @@ class ChecksumException(Exception):
         super(ChecksumException, self).__init__(ChecksumException.error_msg)
 
 
-class NodeNotExists(Exception):
-
-    code = 403
-    error_msg = 'No se puede realizar la operacion sobre un ' \
-        'nodo que no existe.'
-
-    def __init__(self):
-        super(NodeNotExists, self).__init__(NodeNotExists.error_msg)
-
-
-class InactiveAppException(Exception):
-
-    code = 500
-    error_msg = 'No se puede realizar la operacion estando la ' \
-        'aplicacion inactiva.'
-
-    def __init__(self):
-        super(InactiveAppException, self).__init__(
-            InactiveAppException.error_msg)
-
-
-class ActiveAppException(Exception):
-
-    code = 501
-    error_msg = 'No se puede realizar la operacion estando la ' \
-        'aplicacion activa.'
-
-    def __init__(self):
-        super(ActiveAppException, self).__init__(ActiveAppException.error_msg)
-
-
-class BadLineException(Exception):
-
-    code = 502
-    error_msg = 'Error en linea de archivo de la aplicacion.'
-
-    def __init__(self):
-        super(BadLineException, self).__init__(BadLineException.error_msg)
-
-
 class NoMasterException(Exception):
 
     code = 300
@@ -72,25 +32,6 @@ class NoMasterException(Exception):
 
     def __init__(self):
         super(NoMasterException, self).__init__(NoMasterException.error_msg)
-
-
-class NoSlaveException(Exception):
-
-    code = 301
-    error_msg = 'No se puede continuar la lectura de paquetes. ' \
-        'Ya no soy esclavo.'
-
-    def __init__(self):
-        super(NoSlaveException, self).__init__(NoSlaveException.error_msg)
-
-
-class TokenException(Exception):
-
-    code = 301
-    error_msg = 'Error en respuesta u oferta de token.'
-
-    def __init__(self):
-        super(TokenExeption, self).__init__(TokenExeption.error_msg)
 
 
 class InvalidPackage(Exception):

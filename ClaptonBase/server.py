@@ -1,12 +1,13 @@
+
+import binascii
+import traceback
 from threading import Thread
 
 import zmq
-import struct
-import traceback
 
+from . import cfg
+from .containers import Package
 from .utils import get_logger
-from .containers import MemoryContainer, Package
-
 
 logger = get_logger('server')
 
@@ -18,18 +19,18 @@ class TKLanServer(Thread):
     """
     def __init__(self,
                  serial_instance,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
+                 publisher_port=cfg.PUBLISHER_PORT,
+                 commands_port=cfg.COMMANDS_PORT):
 
         # serial connection
         self.ser = serial_instance
 
         # Inicio context para ZMQ
         self.context = zmq.Context()
-
         self.publisher_port = publisher_port
         self.publisher_socket = None
+        self.commands_port = commands_port
+        self.commands_socket = None
 
         # Bandera de parada para los Threads
         self.stop = False
@@ -38,99 +39,50 @@ class TKLanServer(Thread):
 
     def setup(self):
         try:
-            self.setup_sockets()
-            self.setup_threads()
+            logger.info("Starting publisher socket")
+            self.publisher_socket = self.context.socket(zmq.PUB)
+            self.publisher_socket.bind(
+                "tcp://*:{0}".format(self.publisher_port))
+            logger.info("Starting commands sockets")
+            self.commands_socket = self.context.socket(zmq.REP)
+            self.commands_socket.bind(
+                "tcp://*:{0}".format(self.commands_port))
         except zmq.ZMQError as error:
-            self.stop_sockets()
+            self.context.term()
             raise error
-
-    def setup_sockets(self):
-        """
-        Initialize the zmq sockets.
-        """
-        logger.info("Starting publisher socket")
-        self.publisher_socket = self.context.socket(zmq.PUB)
-        self.publisher_socket.bind(
-            "tcp://*:{0}".format(self.publisher_port))
-
-
-    def setup_threads(self):
-        """
-        Start the threads of your server.
-        If you want to run aditional threads that runs \
-        you should extend this function to start them::
-
-            class YourCustomServer(BaseServer):
-
-                def start_threads(self):
-                    super().start_threads()
-                    self.your_custom_thread.start()
-
-                def stop_threads(self):
-                    super().stop_threads()
-                    self.your_custom_thread.join()
-
-        Be aware to also stop your custom threads in \
-        :func:`stop_threads`
-        """
-        logger.info("Starting threads")
-        pass
 
     def join(self, *args, **kwargs):
         """
         Stop the server. You shouldn't extend this function.
         """
         self.stop = True
-        self.stop_threads()
-        self.stop_sockets()
-        logger.info("Base server stoped")
-        super().join(*args, **kwargs)
-
-    def stop_threads(self):
-        """
-        Stop the threads of your server.
-        If you want to run aditional threads and you alredy registered to be started :func:`start_threads`
-        you should extend this function to stop them::
-
-            class YourCustomServer(BaseServer):
-
-                ...
-
-                def start_threads(self):
-                    super().start_threads()
-                    self.your_custom_thread.start()
-
-                def stop_threads(self):
-                    super().stop_threads()
-                    self.your_custom_thread.join()
-        """
-        pass
-
-    def stop_sockets(self):
-        """
-        Stop the zmq publisher and commands sockets.
-        """
-        logger.info("Attempt to stop publisher socket")
+        logger.info("Stopping publisher socket")
         self.publisher_socket.close()
+        logger.info("Stopping commands socket")
+        self.commands_socket.close()
+        logger.info("Closing ZMQ context")
         self.context.term()
-        logger.info("Sockets stoped")
-
-    def handle_exception(self, exception):
-        pass
+        super().join(*args, **kwargs)
+        logger.info("TKLan server stoped")
 
     def run(self):
         while not self.stop:
             try:
-                if self.ser.im_master:
-                    self.run_when_master()
-                else:
-                    self.run_when_slave()
-                self.run_always()
+                msg = self.commands_socket.recv_json(zmq.NOBLOCK)
+                request = Package(
+                    sender=msg['sender'],
+                    destination=msg['destination'],
+                    function=msg['function'],
+                    data=binascii.unhexlify(msg['data']),
+                    validate=msg.get('validate', True)
+                )
+                self.publisher_socket.send_json(request)
+                response = self.ser.send_package(request)
+                self.commands_socket.send_json(dict(response))
+                self.publisher_socket.send_json(dict(request))
             except Exception as error:
-                tb = traceback.format_exc()
-                logger.critical(tb)
-                self.handle_exception(tb)
-                tb = traceback.format_tb(error.__traceback__)
-                logger.critical(''.join(tb))
-                self.handle_exception(''.join(tb))
+                error = traceback.format_exc().split('\n')
+                logger.critical(';'.join(error))
+                msg['error'] = error
+                self.commands_socket.send_json(msg)
 

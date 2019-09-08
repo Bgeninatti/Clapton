@@ -9,14 +9,11 @@ from threading import Lock, Thread
 
 import serial
 
-from . import decode
-from . import cfg
+from . import cfg, decode
 from .containers import Package
 from .exceptions import (ChecksumException, DecodeError, NoMasterException,
-                         NoSlaveException, ReadException, SerialConfigError,
-                         WriteException, TokenException)
+                         ReadException, SerialConfigError, WriteException)
 from .utils import get_logger
-
 
 logger = get_logger('serial')
 
@@ -196,9 +193,6 @@ class SerialInterface(object):
 
         yield: :class:`Paquete`
 
-        raises:
-            * NoSlaveException: In case that the serial port don't return nothing.
-                Which means that nobody is talking, so you are master now.
         """
         logger.debug("Esperando disponibilidad de puerto serie.")
         with self.using_ser:

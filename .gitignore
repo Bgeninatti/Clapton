@@ -43,3 +43,9 @@ coverage.xml
 
 # Virtualenv
 venv/
+
+# Pytest
+
+
+# Pytest
+.pytest_cache/

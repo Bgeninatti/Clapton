@@ -15,7 +15,7 @@ from .containers import Package
 from .exceptions import (ChecksumException, DecodeError, NoMasterException,
                          NoSlaveException, ReadException, SerialConfigError,
                          WriteException, TokenException)
-from .utils import GiveMasterEvent, MasterEvent, get_logger
+from .utils import get_logger
 
 
 logger = get_logger('serial')
@@ -30,11 +30,6 @@ class SerialInterface(object):
     example, you unplug the TKLan cable) the process in this thread will try
     to reconnect and the pending operation with the port will be stoped until
     the connection be restablished.
-
-    This class also provides functions to make the master interaction between nodes:
-
-    * :func:`acept_token`: to accept a token offer from a node.
-    * :func:`check_master`: to check if there's any master on the network or not. If not this means that you are master!
     """
 
     def __init__(self,
@@ -84,8 +79,6 @@ class SerialInterface(object):
         self._connection_thread = Thread(target=self._connection)
 
         self.im_master = False
-        self.want_master = MasterEvent()
-        self.give_master = GiveMasterEvent()
 
     def start(self):
         """
@@ -197,8 +190,6 @@ class SerialInterface(object):
         If you are not master this means that you anly can listen to the packages in
         the network.
         This function returns a generator that on each iteration yield a :class:`package`.
-        Also check if ``want_master`` flag is set to know if should answer to the token
-        offer when appear.
 
         return:
             Python generator
@@ -221,12 +212,6 @@ class SerialInterface(object):
                         bytes_chain += self._ser.read(package_length-len(bytes_chain))
                     package = Package(bytes_chain=bytes_chain[:package_length])
                     bytes_chain = bytes_chain[package_length:]
-
-                    if self.want_master.isSet() and package.function == 7 and not len(bytes_chain):
-                        self.accept_token(package.sender)
-                        self.check_master(ser_locked=True)
-                        if self.im_master:
-                            self.want_master.clear()
                     yield package
                 except (ChecksumException, DecodeError) as e:
                     logger.info("Paquete perdido.")
@@ -236,47 +221,6 @@ class SerialInterface(object):
                     logger.warning(
                         'Funcion read_ser no recibe nada.')
                     self.check_master(ser_locked=True)
-                    if self.im_master and not self.want_master.isSet():
-                        self.want_master.clear()
-                        raise NoSlaveException()
-
-    def accept_token(self, sender):
-        """
-        This function answer the token offer to a specific node.
-        Usualy is executed by :func:``read_paq`` when the flag ``want_master``
-        is set.
-
-        If you want to use this in another place, take care about the timeout to
-        respond the token offer if you are not master.
-
-        :param origen: The ``lan_dir`` of the node that send the token offer.
-
-        """
-        logger.info('Aceptando oferta de token.')
-        package = Package(destination=sender, function=7)
-        self._ser.write(bytes(package))
-        echo_package = self.listen_package()
-        response = self.listen_package()
-        return response
-
-    def offer_token(self, destination):
-        """
-        :return: None
-        :raise:
-            TokenExeption: Si no se pudo hacer el traspaso de token.
-            WriteException: Si no se pudo leer el echo.
-            ReadException: Si no se pudo leer la respuesta del nodo.
-        """
-
-        logger.info("Ofreciendo token al nodo {}.".format(destination))
-        package = Package(destination=destination, function=7)
-        self._ser.write(bytes(package))
-        echo_package = self.listen_package()
-        response = self.listen_package()
-        self.check_master()
-        if self.im_master:
-            logger.error("Error en traspaso de master al nodo {}.".format(self.lan_dir))
-            raise TokenException()
 
     def check_master(self, ser_locked=False):
         """

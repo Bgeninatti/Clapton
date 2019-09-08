@@ -1,11 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
 import logging.config
-import time
-try:
-    from threading import _Event as Event
-except ImportError:
-    from threading import Event
 from . import cfg
 
 
@@ -30,32 +25,3 @@ def get_logger(name):
     loggers[name] = logger
     return logger
 
-
-class MasterEvent(Event):
-
-    def __init__(self, *args, **kwargs):
-        super(MasterEvent, self).__init__(*args, **kwargs)
-        self.timeout = None
-
-    def set(self, *args, **kwargs):
-        super(MasterEvent, self).set()
-        self.timeout = time.time() + cfg.MASTER_EVENT_TIMEOUT
-
-    def clear(self, *args, **kwargs):
-        self.timeout = None
-        super(MasterEvent, self).clear()
-
-
-class GiveMasterEvent(MasterEvent):
-
-    def __init__(self, *args, **kwargs):
-        super(GiveMasterEvent, self).__init__(*args, **kwargs)
-        self.node = None
-
-    def set(self, node, *args, **kwargs):
-        super(GiveMasterEvent, self).set()
-        self.node = node
-
-    def clear(self, *args, **kwargs):
-        self.node = None
-        super(GiveMasterEvent, self).clear(*args, **kwargs)

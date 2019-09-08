@@ -63,7 +63,7 @@ def ser_raises_read_exception():
 
     return SerialReadException()
 
-@pytest.fixture
+# @pytest.fixture
 def ser_answer_all():
     class SerialAnswerAll(object):
 

@@ -93,6 +93,16 @@ class Package(object):
         self.checksum = encode.make_checksum(first_byte + second_byte + self.data)
         return first_byte + second_byte + self.data + self.checksum
 
+    def __dict__(self):
+        return {
+            'sender': self.sender,
+            'destination': self.destination,
+            'function': self.function,
+            'length': self.length,
+            'data': binascii.hexlify(self.data).decode(),
+            'checksum': binascii.hexlify(self.checksum).decode()
+        }
+
     def validate(self):
         if self.function == 7 and len(self.data):
             raise InvalidPackage('No se reconoce la funcion')

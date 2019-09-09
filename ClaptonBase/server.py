@@ -20,8 +20,10 @@ class TKLanServer(Thread):
     def __init__(self,
                  serial_instance,
                  publisher_port=cfg.PUBLISHER_PORT,
-                 commands_port=cfg.COMMANDS_PORT):
+                 commands_port=cfg.COMMANDS_PORT,
+                 *args, **kwargs):
 
+        super().__init__(*args, **kwargs)
         # serial connection
         self.ser = serial_instance
 
@@ -77,7 +79,7 @@ class TKLanServer(Thread):
                     data=binascii.unhexlify(msg['data']),
                     validate=msg.get('validate', True)
                 )
-                self.publisher_socket.send_json(request)
+                self.publisher_socket.send_json(request.to_dict())
                 response = self.ser.send_package(request)
                 logger.info("Sending response: sender=%s, destination=%s, length=%s, function=%s",
                             response.sender,
@@ -86,9 +88,10 @@ class TKLanServer(Thread):
                             response.function)
                 self.commands_socket.send_json(response.to_dict())
                 self.publisher_socket.send_json(request.to_dict())
-            except Exception as error:
-                error = traceback.format_exc().split('\n')
-                logger.error(';'.join(error))
-                msg['error'] = error
-                self.commands_socket.send_json(msg)
+            except zmq.ZMQError:
+                pass
+            except Exception as ex:
+                error = traceback.format_exc()
+                logger.error(error)
+                self.publisher_socket.send_json({'exception': error})
 

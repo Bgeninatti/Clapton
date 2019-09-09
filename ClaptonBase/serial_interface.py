@@ -163,24 +163,12 @@ class SerialInterface(object):
         if not self.im_master:
             raise NoMasterException()
         logger.debug("Esperando disponibilidad de puerto serie.")
-        tries = 0
         with self.using_ser:
-            while 1:
-                try:
-                    self._ser.flushInput()
-                    self._ser.write(bytes(package))
-                    echo_package = self.listen_package()
-                    try:
-                        response_package = self.listen_package()
-                        return response_package
-                    except (ReadException, ChecksumException) as error:
-                            raise WriteException()
-                except (WriteException, ReadException, ChecksumException) as error:
-                    if tries < cfg.SEND_PACKAGE_TRIES:
-                        tries += 1
-                        logger.error(error)
-                    else:
-                        raise error
+            self._ser.flushInput()
+            self._ser.write(bytes(package))
+            echo_package = self.listen_package()
+            response_package = self.listen_package()
+            return response_package
 
     def listen_packages(self):
         """

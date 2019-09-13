@@ -94,7 +94,7 @@ class Package(object):
             'destination': self.destination,
             'function': self.function,
             'length': self.length,
-            'data': self.hexlified,
+            'data': binascii.hexlify(self.data).decode(),
             'checksum': binascii.hexlify(self.checksum).decode()
         }
 

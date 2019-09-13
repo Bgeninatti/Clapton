@@ -8,6 +8,7 @@ import zmq
 from . import cfg
 from .containers import Package
 from .utils import get_logger
+from .exceptions import NoMasterException, ReadException
 
 logger = get_logger('server')
 
@@ -87,11 +88,22 @@ class TKLanServer(Thread):
                             response.length,
                             response.function)
                 self.commands_socket.send_json(response.to_dict())
-                self.publisher_socket.send_json(request.to_dict())
+                self.publisher_socket.send_json(response.to_dict())            
+            except (NoMasterException, ReadException) as ex:
+                error_msg = str(ex)
+                logger.error(error_msg)
+                msg['error'] = error_msg
+                self.commands_socket.send_json(msg)
+                self.publisher_socket.send_json(msg)
+
             except zmq.ZMQError:
                 pass
             except Exception as ex:
                 error = traceback.format_exc()
                 logger.error(error)
                 self.publisher_socket.send_json({'exception': error})
+            finally:
+                msg = {}
+                request = None
+                response = None
 

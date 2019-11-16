@@ -19,6 +19,10 @@ class TKLanClient:
         if 'error' in response.keys():
             raise ValueError(response['error'])
 
+    def kill(self):
+        self.socket.close()
+        self.context.term()
+
 class Subscriber:
 
     def __init__(self, ip, port=cfg.PUBLISHER_PORT):
@@ -32,3 +36,7 @@ class Subscriber:
 
     def listen(self):
         return self.socket.recv_json(zmq.NOBLOCK)
+
+    def kill(self):
+        self.socket.close()
+        self.context.term()

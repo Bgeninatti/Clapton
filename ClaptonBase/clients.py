@@ -15,7 +15,9 @@ class TKLanClient:
         self.socket.send_json(package.to_dict())
 
     def recv_response(self):
-        return self.socket.recv_json(zmq.NOBLOCK)
+        response = self.socket.recv_json(zmq.NOBLOCK)
+        if 'error' in response.keys():
+            raise ValueError(response['error'])
 
 class Subscriber:
 

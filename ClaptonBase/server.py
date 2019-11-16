@@ -123,5 +123,5 @@ class TKLanServer(Thread):
             except Exception as ex:
                 error = traceback.format_exc()
                 logger.error(error)
-                self.publisher_socket.send_json({'exception': error})
+                self.publisher_socket.send_json({'error': error})
 

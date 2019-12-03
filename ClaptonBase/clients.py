@@ -18,6 +18,7 @@ class TKLanClient:
         response = self.socket.recv_json(zmq.NOBLOCK)
         if 'error' in response.keys():
             raise ValueError(response['error'])
+        return response
 
     def kill(self):
         self.socket.close()
